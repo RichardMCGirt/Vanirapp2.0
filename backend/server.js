@@ -46,22 +46,49 @@ app.post("/auth/login", (req, res) => {
 //
 // ------------------- JOB LIST -------------------
 //
+// =========================================
+// FULL JOB LIST WITH STORE + TRADE + PAID
+// =========================================
 app.get("/jobs", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT *
-      FROM "Jobs"
-      WHERE "Status" != 4 
-      ORDER BY "Id" DESC
-      LIMIT 50;
-    `);
+  const sql = `
+    SELECT 
+      J."Id" AS job_id,
+      J."Name" AS job_name,
+      J."CreationTime" AS creationtime,
 
+      -- Store
+      S."Name" AS store_name,
+
+      -- Trade (from JobContractors table)
+      T."Name" AS trade_name,
+
+      -- Payment status
+      COALESCE(JC."IsPaid", false) AS ispaid
+
+    FROM "Jobs" J
+    LEFT JOIN "Stores" S 
+      ON S."Id" = J."StoreId"
+
+    LEFT JOIN "JobContractors" JC 
+      ON JC."JobId" = J."Id"
+
+    LEFT JOIN "Trades" T 
+      ON T."Id" = JC."Type"
+
+    WHERE J."IsDeleted" = false
+    ORDER BY J."Id" DESC
+    LIMIT 100;
+  `;
+
+  try {
+    const result = await pool.query(sql);
     res.json(result.rows);
   } catch (err) {
     console.error("Jobs fetch error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 //
 // ------------------- JOB FILTERS -------------------
