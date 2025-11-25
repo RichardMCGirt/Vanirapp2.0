@@ -1,66 +1,72 @@
+// src/pages/Login.js
 import React, { useState } from "react";
-import "./Login.css";
-import { apiPost } from "../api/api.js";
+import "./Login.css"; 
+import { apiPost } from "../api/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   async function handleLogin(e) {
     e.preventDefault();
+    setError("");
 
-    const res = await apiPost("/auth/login", { email, password });
+    try {
+      const res = await apiPost("/auth/login", { email, password });
 
-    if (res.token) {
-      localStorage.setItem("token", res.token);
-      window.location.href = "/jobs";
-    } else {
-      alert("Invalid login");
+      if (res.token) {
+        localStorage.setItem("token", res.token);
+        localStorage.setItem("userName", res.user?.name || "");
+        localStorage.setItem("userEmail", res.user?.email || "");
+
+        window.location.href = "/jobs";
+      } else {
+        setError("Invalid login. Please check your credentials.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Invalid email or password.");
     }
   }
 
   return (
     <div className="login-container">
+
+      {/* LEFT PANEL (background image) */}
       <div
         className="login-left"
         style={{ backgroundImage: `url("/vanirimg.png")` }}
-      ></div>
+      >
+        <div className="welcome-title">Welcome to Admin Portal</div>
+      </div>
 
+      {/* RIGHT PANEL - form area */}
       <div className="login-right">
         <div className="login-box">
           <h2>LOGIN</h2>
 
+          {error && <div className="login-error">{error}</div>}
+
           <form onSubmit={handleLogin}>
-            <label>Username/Email</label>
+
+            <label>Email</label>
             <input
-              type="email"
+              type="text"
+              placeholder="Enter email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@vanir.com"
-              required
             />
 
             <label>Password</label>
             <input
               type="password"
+              placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="•••••"
-              required
             />
 
-            <div className="remember-row">
-              <input type="checkbox" />
-              <span>Remember me</span>
-            </div>
-
-            <a href="#" className="forgot-link">
-              Forgot Password?
-            </a>
-
-            <button type="submit" className="login-btn">
-              Login
-            </button>
+            <button type="submit">Login</button>
           </form>
         </div>
       </div>

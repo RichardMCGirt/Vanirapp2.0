@@ -3,33 +3,51 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
+const crypto = require("crypto");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // ------------------- TEMP LOGIN -------------------
-const testUsers = [
-  {
-    email: "richard.mcgirt@vanirinstalledsales.com",
-    password: "123qwe",
-    token: "richard-temp-token",
-  },
-  {
-    email: "diana.smith@vanirinstalledsales.com",
-    password: "123qwe",
-    token: "diana-temp-token",
-  },
-];
+const { verifyAspNetIdentityPassword } = require("./passwordValidator");
 
-app.post("/auth/login", (req, res) => {
+app.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
-  const user = testUsers.find(
-    (u) => u.email === email && u.password === password
-  );
-  if (!user) return res.status(400).json({ error: "Invalid login" });
-  res.json({ token: user.token });
+
+  try {
+    const sql = `
+      SELECT "Id", "EmailAddress", "Password"
+      FROM "AbpUsers"
+      WHERE LOWER("EmailAddress") = LOWER($1)
+    `;
+
+    const result = await pool.query(sql, [email]);
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: "Invalid login" });
+    }
+
+    const user = result.rows[0];
+
+    const valid = verifyAspNetIdentityPassword(password, user.Password);
+
+    if (!valid) {
+      return res.status(400).json({ error: "Invalid login" });
+    }
+
+    res.json({
+      token: "auth-token-" + user.Id,
+      userId: user.Id,
+      email: user.EmailAddress,
+    });
+
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
+
 
 // ================================
 // GET JOB DETAILS (FULLY FIXED)
@@ -112,10 +130,59 @@ app.get("/job/:id", async (req, res) => {
 });
 
 
+// ================================
+// UPDATE JOB
+// ================================
+app.post("/job/update", async (req, res) => {
+  try {
+    const {
+      id,
+      name,
+      startdate,
+      address,
+      plansandoptions,
+      fieldtech_id,
+      trades
+    } = req.body;
 
-// ================================
-// GET ALL JOBS FOR THE GRID
-// ================================
+    // 1️⃣ Update main job record
+    await pool.query(
+      `
+      UPDATE "Jobs"
+      SET 
+        "Name" = $1,
+        "StartDate" = $2,
+        "Address" = $3,
+        "PlansAndOptions" = $4,
+        "FieldTechId" = $5
+      WHERE "Id" = $6
+      `,
+      [name, startdate, address, plansandoptions, fieldtech_id, id]
+    );
+
+    // 2️⃣ Update each trade
+    if (Array.isArray(trades)) {
+      for (const t of trades) {
+        await pool.query(
+          `
+          UPDATE "JobTrades"
+          SET "LaborCost" = $1
+          WHERE "Id" = $2
+          `,
+          [t.labor_cost, t.id]
+        );
+      }
+    }
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("Update job error:", err);
+    res.status(500).json({ error: "Server error during update" });
+  }
+});
+
+
 // ================================
 // GET LAST 20 JOBS
 // ================================
