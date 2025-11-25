@@ -50,78 +50,91 @@ app.post("/auth/login", async (req, res) => {
 
 
 // ================================
-// GET JOB DETAILS (FULLY FIXED)
+// GET JOB DETAILS (WITH INSTALLER)
 // ================================
 app.get("/job/:id", async (req, res) => {
   const sql = `
-    SELECT 
-      J."Id" AS id,
-      J."Name" AS name,
+    SELECT
+      J."Id" AS job_id,
+      J."Name" AS job_name,
+      J."Address" AS address,
       J."StartDate" AS startdate,
       J."CreationTime" AS creationtime,
       J."Status" AS status,
       J."PlansAndOptions" AS plansandoptions,
-      J."Address" AS address,
+      J."FieldTechId" AS fieldtech_id,
 
       S."Name" AS store_name,
       C."Name" AS community_name,
       B."Name" AS builder_name,
 
-      U."Id" AS fieldtech_id,
-      U."Name" AS fieldtech_first,
-      U."Surname" AS fieldtech_last,
+      FT."Name" AS fieldtech_first,
+      FT."Surname" AS fieldtech_last,
 
-      T."Name" AS trade_name,
       JT."LaborCost" AS labor_cost,
-      JC."IsPaid" AS ispaid
+      T."Name" AS trade_name,
 
-    FROM "Jobs" J
-    LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
-    LEFT JOIN "Communities" C ON C."Id" = J."CommunityId"
-    LEFT JOIN "Builders" B ON B."Id" = J."BuilderId"
-    LEFT JOIN "AbpUsers" U ON U."Id" = J."FieldTechId"
-    LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
-    LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
-    LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
+      JC."UserId" AS installer_user_id,
 
-    WHERE J."Id" = $1
+      U."Name" AS installer_first,
+      U."Surname" AS installer_last,
+      U."EmailAddress" AS installer_email
+
+    FROM public."Jobs" J
+    
+    LEFT JOIN public."Stores" S ON S."Id" = J."StoreId"
+    LEFT JOIN public."Communities" C ON C."Id" = J."CommunityId"
+    LEFT JOIN public."Builders" B ON B."Id" = J."BuilderId"
+    LEFT JOIN public."AbpUsers" FT ON FT."Id" = J."FieldTechId"
+
+    LEFT JOIN public."JobTrades" JT ON JT."JobId" = J."Id"
+    LEFT JOIN public."Trades" T ON T."Id" = JT."TradeId"
+
+    LEFT JOIN public."JobContractors" JC ON JC."JobId" = J."Id"
+    LEFT JOIN public."AbpUsers" U ON U."Id" = JC."UserId"
+
+    WHERE J."Id" = $1;
   `;
 
   try {
     const r = await pool.query(sql, [req.params.id]);
+
     if (r.rows.length === 0) return res.json(null);
 
-    const row = r.rows[0];
+    const first = r.rows[0];
 
-    const base = {
-      id: row.id,
-      name: row.name,
-      startdate: row.startdate,
-      creationtime: row.creationtime,
-      status: row.status,
-      plansandoptions: row.plansandoptions,
-      address: row.address,
-      store_name: row.store_name,
-      community_name: row.community_name,
-      builder_name: row.builder_name,
+    const response = {
+      id: first.job_id,
+      name: first.job_name,
+      address: first.address,
+      startdate: first.startdate,
+      creationtime: first.creationtime,
+      status: first.status,
+      plansandoptions: first.plansandoptions,
 
-      fieldtech_id: row.fieldtech_id || null,
-      fieldtech_name: `${row.fieldtech_first || ""} ${row.fieldtech_last || ""}`.trim(),
+      store_name: first.store_name,
+      community_name: first.community_name,
+      builder_name: first.builder_name,
 
-      trades: []
+      fieldtech_id: first.fieldtech_id,
+      fieldtech_name: `${first.fieldtech_first || ""} ${first.fieldtech_last || ""}`.trim(),
+
+      installer: {
+        user_id: first.installer_user_id,
+        first: first.installer_first,
+        last: first.installer_last,
+        email: first.installer_email
+      },
+
+      trades: r.rows
+        .filter(r => r.trade_name)
+        .map(r => ({
+          trade_name: r.trade_name,
+          labor_cost: r.labor_cost
+        }))
     };
 
-    r.rows.forEach(tr => {
-      if (tr.trade_name) {
-        base.trades.push({
-          trade_name: tr.trade_name,
-          labor_cost: tr.labor_cost,
-          ispaid: tr.ispaid
-        });
-      }
-    });
-
-    res.json(base);
+    res.json(response);
 
   } catch (err) {
     console.error("Job details error:", err);
@@ -188,22 +201,33 @@ app.post("/job/update", async (req, res) => {
 // ================================
 app.get("/jobs", async (req, res) => {
   const sql = `
-    SELECT
-      J."Id" AS job_id,
-      J."Name" AS job_name,
-      J."CreationTime",
-      S."Name" AS store_name,
-      T."Name" AS trade_name,
-      JT."LaborCost" AS labor_cost,
-      JC."IsPaid" AS ispaid
-    FROM "Jobs" J
-    LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
-    LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
-    LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
-    LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
+SELECT
+  J."Id" AS job_id,
+  J."Name" AS job_name,
+  J."CreationTime",
+  S."Name" AS store_name,
 
-    ORDER BY J."CreationTime" DESC
-    LIMIT 20;
+  T."Name" AS trade_name,
+  JT."LaborCost" AS labor_cost,
+
+  JC."IsPaid" AS ispaid,
+  JC."UserId" AS installer_user_id,
+
+  U."Name" AS installer_first,
+  U."Surname" AS installer_last
+
+FROM "Jobs" J
+LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
+LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
+LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
+LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
+LEFT JOIN "AbpUsers" U ON U."Id" = JC."UserId"
+
+WHERE JC."UserId" IS NOT NULL     -- 🔥 ENSURES INSTALLER EXISTS
+
+ORDER BY J."CreationTime" DESC
+LIMIT 20;
+
   `;
 
   try {

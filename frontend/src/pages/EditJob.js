@@ -33,7 +33,7 @@ export default function EditJob() {
   const [address, setAddress] = useState("");
   const [plansAndOptions, setPlansAndOptions] = useState("");
 
-  // Trades
+  // Trades (still an array; you can have multiple)
   const [trades, setTrades] = useState([]);
 
   // -------------------------
@@ -42,7 +42,7 @@ export default function EditJob() {
   useEffect(() => {
     async function loadAll() {
       try {
-        // 1️⃣ Load main job record
+        // 1️⃣ Load main job record (now includes installer_* fields)
         const jobData = await apiGet(`/job/${id}`);
         if (!jobData) {
           console.error("❌ Job not found");
@@ -63,7 +63,7 @@ export default function EditJob() {
           setStartDate(local);
         }
 
-        // Trades
+        // Trades from backend
         setTrades(jobData.trades || []);
 
         // Read-only fields
@@ -74,7 +74,7 @@ export default function EditJob() {
         // Pre-select field tech
         setSelectedTech(jobData.fieldtech_id || "");
 
-        // 2️⃣ Load dropdown datasets (even if read-only, future use)
+        // 2️⃣ Load dropdown datasets (only fieldtechs currently used, but we keep others for future)
         const [storesRes, buildersRes, communitiesRes, fieldtechRes] =
           await Promise.all([
             apiGet("/stores"),
@@ -107,7 +107,7 @@ export default function EditJob() {
         name: jobName,
         startdate: new Date(startDate).toISOString(),
         address,
-plansandoptions: plansAndOptions,
+        plansandoptions: plansAndOptions,
         fieldtech_id: selectedTech,
         trades: trades.map((t) => ({
           id: t.id,
@@ -132,64 +132,109 @@ plansandoptions: plansAndOptions,
   if (loading) return <div>Loading...</div>;
   if (!job) return <div>Job not found</div>;
 
+  // Build installer name from job (coming from /job/:id)
+  const installerFullName = `${job.installer_first || ""} ${
+    job.installer_last || ""
+  }`.trim();
+
   return (
-    <div style={{ padding: "20px" }}>
-   <div className="edit-job-page">
+    <div className="edit-job-page">
+      <h1>Edit Job</h1>
 
-  <h1>Edit Job</h1>
+      <div className="form-grid">
+        {/* Job Name */}
+        <label>Job Name</label>
+        <input
+          value={jobName}
+          onChange={(e) => setJobName(e.target.value)}
+        />
 
-  <div className="form-grid">
-    <label>Job Name</label>
-    <input value={jobName} onChange={(e) => setJobName(e.target.value)} />
+        {/* Start Date */}
+        <label>Start Date</label>
+        <input
+          type="datetime-local"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
 
-    <label>Start Date</label>
-    <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        {/* Field Tech */}
+        <label>Field Tech</label>
+        <select
+          value={selectedTech}
+          onChange={(e) => setSelectedTech(e.target.value)}
+        >
+          <option value="">Select Field Tech</option>
+          {fieldtechs.map((ft) => (
+            <option key={ft.id} value={ft.id}>
+              {ft.name}
+            </option>
+          ))}
+        </select>
 
-    <label>Field Tech</label>
-    <select value={selectedTech} onChange={(e) => setSelectedTech(e.target.value)}>
-      <option value="">Select Field Tech</option>
-      {fieldtechs.map(ft => (
-        <option key={ft.id} value={ft.id}>{ft.name}</option>
+        {/* Store (read-only) */}
+        <label>Store</label>
+        <input value={storeName} readOnly />
+
+        {/* Community (read-only) */}
+        <label>Community</label>
+        <input value={communityName} readOnly />
+
+        {/* Builder (read-only) */}
+        <label>Builder</label>
+        <input value={builderName} readOnly />
+
+        {/* Installer name (read-only, from joined tables) */}
+        <label>Installer</label>
+        <input value={installerFullName} readOnly />
+
+        {/* Installer email (read-only) */}
+        <label>Installer Email</label>
+        <input value={job.installer_email || ""} readOnly />
+
+        {/* Address */}
+        <label>Address</label>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+
+        {/* Plans & Options */}
+        <label>Plans &amp; Options</label>
+        <textarea
+          value={plansAndOptions}
+          onChange={(e) => setPlansAndOptions(e.target.value)}
+        />
+      </div>
+
+      {/* TRADES SECTION */}
+      <h2 className="section-title">Trades</h2>
+
+      {trades.length === 0 && (
+        <p className="no-trades">— No trades found for this job —</p>
+      )}
+
+      {trades.map((t, idx) => (
+        <div className="trade-row" key={t.id || idx}>
+          <div className="trade-name">
+            <strong>{t.trade_name}</strong>
+          </div>
+          <div className="trade-labor">
+            <label>Labor Cost</label>
+            <input
+              value={t.labor_cost}
+              onChange={(e) => {
+                const updated = [...trades];
+                updated[idx].labor_cost = e.target.value;
+                setTrades(updated);
+              }}
+            />
+          </div>
+        </div>
       ))}
-    </select>
 
-    <label>Store</label>
-    <input value={storeName} readOnly />
-
-    <label>Community</label>
-    <input value={communityName} readOnly />
-
-    <label>Builder</label>
-    <input value={builderName} readOnly />
-
-    <label>Address</label>
-    <input value={address} onChange={(e) => setAddress(e.target.value)} />
-
-    <label>Plans & Options</label>
-    <textarea
-      value={plansAndOptions}
-      onChange={(e) => setPlansAndOptions(e.target.value)}
-    />
-  </div>
-
-  <h2 className="section-title">Trades</h2>
-
-  {trades.map((t, idx) => (
-    <div className="trade-row" key={t.id}>
-      <strong>{t.trade_name}</strong>
-      <input
-        value={t.labor_cost}
-        onChange={(e) => {
-          const updated = [...trades];
-          updated[idx].labor_cost = e.target.value;
-          setTrades(updated);
-        }}
-      />
+      <button className="save-btn" onClick={handleSave}>
+        Save
+      </button>
     </div>
-  ))}
-
-  <button className="save-btn" onClick={handleSave}>Save</button>
-</div>
-</div>
   );
 }
