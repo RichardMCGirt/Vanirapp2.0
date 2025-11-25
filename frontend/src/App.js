@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Jobs from "./pages/Jobs";
 import JobDetails from "./pages/JobDetails";
 import EditJob from "./pages/EditJob";
+import TechInstallerDashboard from "./pages/TechInstallerDashboard";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("token");
@@ -16,10 +17,19 @@ function App() {
     <Router>
       <Routes>
 
-        {/* LOGIN PAGE */}
+        {/* PUBLIC LOGIN */}
         <Route path="/" element={<Login />} />
 
         {/* PROTECTED ROUTES */}
+        <Route
+          path="/dashboard/workloads"
+          element={
+            <RequireAuth>
+              <TechInstallerDashboard />
+            </RequireAuth>
+          }
+        />
+
         <Route
           path="/jobs"
           element={
@@ -29,21 +39,22 @@ function App() {
           }
         />
 
-        <Route
-          path="/job/:id"
-          element={
-            <RequireAuth>
-              <JobDetails />
-            </RequireAuth>
-          }
-        />
-
-        {/* EDIT JOB PAGE */}
+        {/* ⚠ MUST COME BEFORE /job/:id */}
         <Route
           path="/job/edit/:id"
           element={
             <RequireAuth>
               <EditJob />
+            </RequireAuth>
+          }
+        />
+
+        {/* MUST BE LAST - WILDCARD ROUTE */}
+        <Route
+          path="/job/:id"
+          element={
+            <RequireAuth>
+              <JobDetails />
             </RequireAuth>
           }
         />
