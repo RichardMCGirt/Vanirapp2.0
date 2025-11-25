@@ -1,4 +1,6 @@
-// backend/server.js
+// ------------------------------
+// 📌 SERVER SETUP
+// ------------------------------
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -8,25 +10,29 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-//
-// ------------------- TEST ROUTE -------------------
+
+// ------------------------------
+// 📌 TEST ROUTE
+// ------------------------------
 app.get("/", (req, res) => {
   res.json({ status: "Backend API running 🚀" });
 });
 
-//
-// ------------------- TEMP LOGIN -------------------
+
+// ------------------------------
+// 📌 TEMP LOGIN
+// ------------------------------
 const testUsers = [
   {
     email: "richard.mcgirt@vanirinstalledsales.com",
     password: "123qwe",
-    token: "richard-temp-token"
+    token: "richard-temp-token",
   },
   {
     email: "diana.smith@vanirinstalledsales.com",
     password: "123qwe",
-    token: "diana-temp-token"
-  }
+    token: "diana-temp-token",
+  },
 ];
 
 app.post("/auth/login", (req, res) => {
@@ -42,10 +48,9 @@ app.post("/auth/login", (req, res) => {
 });
 
 
-//
-// ===================================================
-// JOB LIST – STORE + TRADES + LABOR + PAID
-// ===================================================
+// ======================================================================
+// 📌 GET FULL JOB LIST WITH STORE, TRADE, LABOR, PAID STATUS
+// ======================================================================
 app.get("/jobs", async (req, res) => {
   const sql = `
     SELECT
@@ -53,22 +58,15 @@ app.get("/jobs", async (req, res) => {
       J."Name" AS job_name,
       J."CreationTime" AS creationtime,
       S."Name" AS store_name,
-
       T."Name" AS trade_name,
       JT."LaborCost" AS labor_cost,
       COALESCE(JC."IsPaid", false) AS ispaid
 
     FROM "Jobs" J
-    LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
-
-    LEFT JOIN "JobTrades" JT
-      ON JT."JobId" = J."Id"
-
-    LEFT JOIN "Trades" T
-      ON T."Id" = JT."TradeId"
-
-    LEFT JOIN "JobContractors" JC
-      ON JC."JobId" = J."Id"
+    LEFT JOIN "Stores" S   ON S."Id" = J."StoreId"
+    LEFT JOIN "JobTrades" JT  ON JT."JobId" = J."Id"
+    LEFT JOIN "Trades" T   ON T."Id" = JT."TradeId"
+    LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
 
     WHERE J."IsDeleted" = false
     ORDER BY J."Id" DESC
@@ -76,8 +74,8 @@ app.get("/jobs", async (req, res) => {
   `;
 
   try {
-    const result = await pool.query(sql);
-    res.json(result.rows);
+    const r = await pool.query(sql);
+    res.json(r.rows);
   } catch (err) {
     console.error("Jobs fetch error:", err);
     res.status(500).json({ error: "Server error" });
@@ -85,11 +83,11 @@ app.get("/jobs", async (req, res) => {
 });
 
 
-//
-// ------------------- JOB FILTERS -------------------
-//
+// ======================================================================
+// 📌 JOB FILTERS (MUST COME BEFORE /job/:id)
+// ======================================================================
 
-// 1️⃣ Unpaid subcontractors
+// 🔴 Unpaid subcontractors
 app.get("/jobs/unpaid", async (req, res) => {
   const sql = `
     SELECT 
@@ -103,17 +101,16 @@ app.get("/jobs/unpaid", async (req, res) => {
     WHERE JC."IsPaid" = false
     ORDER BY JC."CreationTime" DESC;
   `;
-
   try {
     const r = await pool.query(sql);
     res.json(r.rows);
   } catch (err) {
-    console.error("Unpaid subcontractors error:", err);
+    console.error("Unpaid error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// 2️⃣ Measurements to order
+// 📏 Measurements to order
 app.get("/jobs/measurements", async (req, res) => {
   const sql = `
     SELECT 
@@ -124,7 +121,6 @@ app.get("/jobs/measurements", async (req, res) => {
     WHERE J."MeasurementStatus" = 1
     ORDER BY J."CreationTime" DESC;
   `;
-
   try {
     const r = await pool.query(sql);
     res.json(r.rows);
@@ -134,7 +130,7 @@ app.get("/jobs/measurements", async (req, res) => {
   }
 });
 
-// 3️⃣ Subcontractors needing onboarding
+// 🧾 Subcontractors needing onboarding
 app.get("/jobs/onboard", async (req, res) => {
   const sql = `
     SELECT 
@@ -146,17 +142,16 @@ app.get("/jobs/onboard", async (req, res) => {
       AND (SC."HasPrice" = false OR SC."Location" IS NULL)
     ORDER BY SC."CreationTime" DESC;
   `;
-
   try {
     const r = await pool.query(sql);
     res.json(r.rows);
   } catch (err) {
-    console.error("Onboarding error:", err);
+    console.error("Onboard error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// 4️⃣ Lien notices needed
+// 📄 Lien notices needed
 app.get("/jobs/liens", async (req, res) => {
   const sql = `
     SELECT
@@ -168,7 +163,6 @@ app.get("/jobs/liens", async (req, res) => {
       AND J."IsDeleted" = false
     ORDER BY J."Id" ASC;
   `;
-
   try {
     const r = await pool.query(sql);
     res.json(r.rows);
@@ -179,51 +173,80 @@ app.get("/jobs/liens", async (req, res) => {
 });
 
 
-//
-// ===================================================
-// JOB DETAILS – FULL WITH TRADES + LABOR + PAID
-// ===================================================
+// ======================================================================
+// 📌 FULL JOB DETAILS (USED BY JobDetails.js)
+// ======================================================================
 app.get("/job/:id", async (req, res) => {
   const sql = `
-    SELECT 
-      J."Id" AS job_id,
-      J."Name" AS job_name,
-      J."CreationTime" AS creationtime,
-      J."JobStartDate",
-      J."Address",
+    SELECT
+      J."Id",
+      J."Name",
+      J."StartDate",
+      J."CreationTime",
+      J."Status",
       J."PlansAndOptions",
-      J."ConstructionManagerId",
+      J."LocationAddress",
 
       S."Name" AS store_name,
       C."Name" AS community_name,
       B."Name" AS builder_name,
-      FT."Name" AS fieldtech_name,
 
       T."Name" AS trade_name,
-      JT."LaborCost" AS labor_cost,
-      COALESCE(JC."IsPaid", false) AS ispaid
+      JT."LaborCost" AS labor_cost
 
     FROM "Jobs" J
     LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
     LEFT JOIN "Communities" C ON C."Id" = J."CommunityId"
     LEFT JOIN "Builders" B ON B."Id" = J."BuilderId"
-    LEFT JOIN "FieldTechs" FT ON FT."Id" = J."FieldTechId"
 
     LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
     LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
 
-    LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
-
     WHERE J."Id" = $1
   `;
 
-  const result = await pool.query(sql, [req.params.id]);
-  res.json(result.rows);
+  try {
+    const r = await pool.query(sql, [req.params.id]);
+
+    // Group all trade rows under a single job object
+    if (r.rows.length === 0) return res.json(null);
+
+    const base = {
+      id: r.rows[0].Id,
+      name: r.rows[0].Name,
+      startdate: r.rows[0].StartDate,
+      creationtime: r.rows[0].CreationTime,
+      status: r.rows[0].Status,
+      plansandoptions: r.rows[0].PlansAndOptions,
+      address: r.rows[0].LocationAddress,
+      store_name: r.rows[0].store_name,
+      community_name: r.rows[0].community_name,
+      builder_name: r.rows[0].builder_name,
+      trades: []
+    };
+
+    r.rows.forEach(row => {
+      if (row.trade_name) {
+        base.trades.push({
+          trade_name: row.trade_name,
+          labor_cost: row.labor_cost
+        });
+      }
+    });
+
+    res.json(base);
+
+  } catch (err) {
+    console.error("Job details error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 
-//
-// ------------------- RELATED JOB DATA -------------------
+
+// ======================================================================
+// 📌 OTHER JOB SUB-ROUTES
+// ======================================================================
 app.get("/job/:id/contractors", async (req, res) => {
   const sql = `
     SELECT JC."Id", U."Name", JC."IsPaid"
@@ -231,7 +254,6 @@ app.get("/job/:id/contractors", async (req, res) => {
     LEFT JOIN "SubContractors" U ON JC."UserId" = U."Id"
     WHERE JC."JobId" = $1
   `;
-
   const r = await pool.query(sql, [req.params.id]);
   res.json(r.rows);
 });
@@ -266,7 +288,10 @@ app.get("/job/:id/store", async (req, res) => {
 });
 
 
-//
-// ------------------- START SERVER -------------------
+// ======================================================================
+// 📌 START SERVER
+// ======================================================================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 API running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 API running on port ${PORT}`);
+});
