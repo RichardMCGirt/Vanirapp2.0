@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../api/api";
+import "./EditJob.css";
 
 export default function EditJob() {
   const { id } = useParams();
@@ -133,109 +134,62 @@ plansandoptions: plansAndOptions,
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Edit Job</h1>
+   <div className="edit-job-page">
 
-      {/* --------------------- */}
-      {/* Job Name */}
-      {/* --------------------- */}
-      <label><strong>Job Name</strong></label><br />
-      <input
-        value={jobName}
-        onChange={(e) => setJobName(e.target.value)}
-        style={{ width: "300px" }}
-      /><br /><br />
+  <h1>Edit Job</h1>
 
-      {/* --------------------- */}
-      {/* Start Date */}
-      {/* --------------------- */}
-      <label><strong>Start Date</strong></label><br />
-      <input
-        type="datetime-local"
-        value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
-        style={{ width: "250px" }}
-      /><br /><br />
+  <div className="form-grid">
+    <label>Job Name</label>
+    <input value={jobName} onChange={(e) => setJobName(e.target.value)} />
 
-      {/* --------------------- */}
-      {/* Field Tech Dropdown */}
-      {/* --------------------- */}
-      <label><strong>Field Tech</strong></label><br />
-      <select
-        value={selectedTech}
-        onChange={(e) => setSelectedTech(e.target.value)}
-        style={{ width: "250px" }}
-      >
-        <option value="">Select Field Tech</option>
-        {fieldtechs.map((tech) => (
-          <option key={tech.id} value={tech.id}>
-            {tech.name}
-          </option>
-        ))}
-      </select>
+    <label>Start Date</label>
+    <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
 
-      <br /><br />
-
-      {/* --------------------- */}
-      {/* READ-ONLY FIELDS */}
-      {/* --------------------- */}
-      <label><strong>Store</strong></label><br />
-      <input value={storeName} readOnly style={{ width: "250px" }} /><br /><br />
-
-      <label><strong>Community</strong></label><br />
-      <input value={communityName} readOnly style={{ width: "250px" }} /><br /><br />
-
-      <label><strong>Builder</strong></label><br />
-      <input value={builderName} readOnly style={{ width: "250px" }} /><br /><br />
-
-      {/* --------------------- */}
-      {/* Address */}
-      {/* --------------------- */}
-      <label><strong>Address</strong></label><br />
-      <input
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        style={{ width: "350px" }}
-      /><br /><br />
-
-      {/* --------------------- */}
-      {/* Plans and Options */}
-      {/* --------------------- */}
-      <label><strong>Plans & Options</strong></label><br />
-      <textarea
-        value={plansAndOptions}
-        onChange={(e) => setPlansAndOptions(e.target.value)}
-        rows="4"
-        cols="50"
-      /><br /><br />
-
-      {/* --------------------- */}
-      {/* Trades */}
-      {/* --------------------- */}
-      <h2>Trades</h2>
-      {trades.map((t, idx) => (
-        <div key={t.id} style={{ marginBottom: "10px" }}>
-          <label><strong>{t.trade_name}</strong></label><br />
-          <input
-            type="text"
-            value={t.labor_cost}
-            onChange={(e) => {
-              const updated = [...trades];
-              updated[idx].labor_cost = e.target.value;
-              setTrades(updated);
-            }}
-            style={{ width: "150px" }}
-          />
-        </div>
+    <label>Field Tech</label>
+    <select value={selectedTech} onChange={(e) => setSelectedTech(e.target.value)}>
+      <option value="">Select Field Tech</option>
+      {fieldtechs.map(ft => (
+        <option key={ft.id} value={ft.id}>{ft.name}</option>
       ))}
+    </select>
 
-      <br /><br />
+    <label>Store</label>
+    <input value={storeName} readOnly />
 
-      {/* --------------------- */}
-      {/* SAVE BUTTON */}
-      {/* --------------------- */}
-      <button onClick={handleSave} style={{ padding: "10px 20px" }}>
-        Save
-      </button>
+    <label>Community</label>
+    <input value={communityName} readOnly />
+
+    <label>Builder</label>
+    <input value={builderName} readOnly />
+
+    <label>Address</label>
+    <input value={address} onChange={(e) => setAddress(e.target.value)} />
+
+    <label>Plans & Options</label>
+    <textarea
+      value={plansAndOptions}
+      onChange={(e) => setPlansAndOptions(e.target.value)}
+    />
+  </div>
+
+  <h2 className="section-title">Trades</h2>
+
+  {trades.map((t, idx) => (
+    <div className="trade-row" key={t.id}>
+      <strong>{t.trade_name}</strong>
+      <input
+        value={t.labor_cost}
+        onChange={(e) => {
+          const updated = [...trades];
+          updated[idx].labor_cost = e.target.value;
+          setTrades(updated);
+        }}
+      />
     </div>
+  ))}
+
+  <button className="save-btn" onClick={handleSave}>Save</button>
+</div>
+</div>
   );
 }

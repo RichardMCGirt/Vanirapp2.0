@@ -1,0 +1,118 @@
+/* ================================
+   PAGE WRAPPER
+================================ */
+.edit-job-page {
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 25px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.05);
+  font-family: "Inter", sans-serif;
+}
+
+/* ================================
+   HEADER
+================================ */
+.edit-job-page h1 {
+  font-size: 26px;
+  margin-bottom: 25px;
+  font-weight: 600;
+  color: #222;
+}
+
+/* ================================
+   FORM GRID (Left Column)
+================================ */
+.form-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  row-gap: 14px;
+  column-gap: 30px;
+  margin-bottom: 40px;
+}
+
+/* label column */
+.form-grid label {
+  font-weight: 600;
+  color: #666;
+  font-size: 14px;
+  padding-top: 6px;
+}
+
+/* input fields */
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* read-only fields style */
+.form-grid input[readonly] {
+  background: #f7f7f7;
+  color: #444;
+}
+
+/* textarea */
+.form-grid textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ================================
+   SECTION TITLE
+================================ */
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 25px 0 15px;
+  color: #333;
+}
+
+/* ================================
+   TRADES LIST
+================================ */
+.trade-row {
+  border: 1px solid #e2e2e2;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  background: #fafafa;
+}
+
+.trade-row strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.trade-row input {
+  width: 150px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* ================================
+   SAVE BUTTON
+================================ */
+.save-btn {
+  margin-top: 30px;
+  padding: 12px 28px;
+  background: #0d6efd;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.save-btn:hover {
+  background: #0a58ca;
+}
