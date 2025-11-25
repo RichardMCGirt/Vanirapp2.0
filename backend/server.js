@@ -51,22 +51,32 @@ app.post("/auth/login", (req, res) => {
 app.get("/jobs", async (req, res) => {
   const sql = `
     SELECT
-    J."Id" AS job_id,
-    J."Name" AS job_name,
-    S."Name" AS store_name,
-    T."Id" AS trade_id,
-    T."Name" AS trade_name,
-    JC."IsPaid"
-FROM "Jobs" J
-LEFT JOIN "Stores" S
-    ON S."Id" = J."StoreId"
-LEFT JOIN "JobContractors" JC
-    ON JC."JobId" = J."Id"
-LEFT JOIN "Trades" T
-    ON T."StoreId" = J."StoreId"   -- 🔥 THE FIX: Trades are store-based
-ORDER BY J."Id" DESC
-LIMIT 50;
+      J."Id" AS job_id,
+      J."Name" AS job_name,
+      J."CreationTime" AS creationtime,
+      S."Name" AS store_name,
+      T."Name" AS trade_name,
+      JT."LaborCost" AS labor_cost,
+      COALESCE(JC."IsPaid", false) AS ispaid
 
+    FROM "Jobs" J
+    
+    LEFT JOIN "Stores" S
+      ON S."Id" = J."StoreId"
+
+    LEFT JOIN "JobTrades" JT
+      ON JT."JobId" = J."Id"
+
+    LEFT JOIN "Trades" T
+      ON T."Id" = JT."TradeId"
+
+    LEFT JOIN "JobContractors" JC
+      ON JC."JobId" = J."Id"
+
+    WHERE J."IsDeleted" = false
+
+    ORDER BY J."Id" DESC
+    LIMIT 200;
   `;
 
   try {
@@ -77,6 +87,12 @@ LIMIT 50;
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
+
+
+
+ 
 
 
 
