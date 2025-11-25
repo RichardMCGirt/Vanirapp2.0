@@ -14,8 +14,7 @@ export default function EditJob() {
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState(null);
 
-  const [stores, setStores] = useState([]);
-  const [builders, setBuilders] = useState([]);
+
   const [communities, setCommunities] = useState([]);
   const [fieldtechs, setFieldTechs] = useState([]);
 
@@ -40,59 +39,42 @@ export default function EditJob() {
   // LOAD ALL DATA
   // -------------------------
   useEffect(() => {
-    async function loadAll() {
-      try {
-        // 1️⃣ Load main job record (now includes installer_* fields)
-        const jobData = await apiGet(`/job/${id}`);
-        if (!jobData) {
-          console.error("❌ Job not found");
-          return;
-        }
+async function loadAll() {
+  try {
+    const jobData = await apiGet(`/job/${id}`);
 
-        setJob(jobData);
-
-        // Fill UI with job values
-        setJobName(jobData.name || "");
-        setAddress(jobData.address || "");
-        setPlansAndOptions(jobData.plansandoptions || "");
-
-        // Start date formatting (convert from ISO → input-local)
-        if (jobData.startdate) {
-          const iso = jobData.startdate;
-          const local = new Date(iso).toISOString().slice(0, 16);
-          setStartDate(local);
-        }
-
-        // Trades from backend
-        setTrades(jobData.trades || []);
-
-        // Read-only fields
-        setStoreName(jobData.store_name || "");
-        setCommunityName(jobData.community_name || "");
-        setBuilderName(jobData.builder_name || "");
-
-        // Pre-select field tech
-        setSelectedTech(jobData.fieldtech_id || "");
-
-        // 2️⃣ Load dropdown datasets (only fieldtechs currently used, but we keep others for future)
-        const [storesRes, buildersRes, communitiesRes, fieldtechRes] =
-          await Promise.all([
-            apiGet("/stores"),
-            apiGet("/builders"),
-            apiGet("/communities"),
-            apiGet("/fieldtechs"),
-          ]);
-
-        setStores(storesRes || []);
-        setBuilders(buildersRes || []);
-        setCommunities(communitiesRes || []);
-        setFieldTechs(fieldtechRes || []);
-      } catch (err) {
-        console.error("Error loading job:", err);
-      } finally {
-        setLoading(false);
-      }
+    if (!jobData) {
+      console.error("❌ Job not found");
+      return;
     }
+
+    setJob(jobData);
+
+    setJobName(jobData.name || "");
+    setAddress(jobData.address || "");
+    setPlansAndOptions(jobData.plansandoptions || "");
+
+    if (jobData.startdate) {
+      const iso = jobData.startdate;
+      const local = new Date(iso).toISOString().slice(0, 16);
+      setStartDate(local);
+    }
+const fieldtechRes = await apiGet("/fieldtechs");
+setFieldTechs(fieldtechRes || []);
+
+    setTrades(jobData.trades || []);
+    setStoreName(jobData.store_name || "");
+    setCommunityName(jobData.community_name || "");
+    setBuilderName(jobData.builder_name || "");
+    setSelectedTech(jobData.fieldtech_id || "");
+
+  } catch (err) {
+    console.error("Error loading job:", err);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
     loadAll();
   }, [id]);

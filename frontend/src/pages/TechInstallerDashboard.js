@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { apiGet } from "../api/api";
 import { Bar } from "react-chartjs-2";
+
 import {
   Chart as ChartJS,
   BarElement,
@@ -13,8 +14,9 @@ import {
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 export default function TechInstallerDashboard() {
-  const [techs, setTechs] = useState([]);
-  const [installers, setInstallers] = useState([]);
+  const [stores, setStores] = useState({});
+  const [activeStore, setActiveStore] = useState("");
+  const [activeTab, setActiveTab] = useState("techs");
 
   useEffect(() => {
     loadData();
@@ -22,46 +24,126 @@ export default function TechInstallerDashboard() {
 
   const loadData = async () => {
     const data = await apiGet("/dashboard/workloads");
-    console.log("📊 Dashboard Data:", data);
 
-    setTechs((data.techs || []).sort((a, b) => a.job_count - b.job_count));
-    setInstallers((data.installers || []).sort((a, b) => a.job_count - b.job_count));
+    setStores(data);
+
+    // Auto-select first store
+    const firstStore = Object.keys(data)[0];
+    if (firstStore) setActiveStore(firstStore);
   };
 
-  const techChart = {
-    labels: techs.map(t => t.name),
+  if (!activeStore) {
+    return <div style={{ padding: 20 }}>Loading dashboard...</div>;
+  }
+
+  const current = stores[activeStore];
+console.log("ACTIVE STORE:", activeStore, current);
+
+const buildChart = (list, label, color) => {
+  const safeList = Array.isArray(list) ? list : [];
+
+  const sorted = [...safeList].sort((a, b) => b.count - a.count);
+
+  return {
+    labels: sorted.map((x) => x.name || "Unknown"),
     datasets: [
       {
-        label: "Open Jobs",
-        data: techs.map(t => Number(t.job_count)),
-        backgroundColor: "rgba(54, 162, 235, 0.6)"
+        label,
+        data: sorted.map((x) => x.count || 0),
+        backgroundColor: color
       }
     ]
   };
+};
 
-  const installerChart = {
-    labels: installers.map(i => i.name),
-    datasets: [
-      {
-        label: "Jobs Assigned",
-        data: installers.map(i => Number(i.job_count)),
-        backgroundColor: "rgba(255, 99, 132, 0.6)"
-      }
-    ]
-  };
 
   return (
     <div style={{ padding: "20px" }}>
       <h1>Tech & Installer Workload Dashboard</h1>
 
-      <div style={{ marginTop: "40px" }}>
-        <h2>Open Jobs per Field Tech</h2>
-        <Bar data={techChart} />
+      {/* STORE TABS */}
+    <div className="store-tabs" style={{ display: "flex", gap: 10, marginTop: 20 }}>
+  {Object.keys(stores)
+    .sort((a, b) => a.localeCompare(b))  // SORT HERE
+    .map((store) => (
+      <button
+        key={store}
+        onClick={() => setActiveStore(store)}
+        className="tab-btn"
+        style={{
+          padding: "10px 20px",
+          background: activeStore === store ? "#004aad" : "#ddd",
+          border: "none",
+          borderRadius: 6,
+          color: activeStore === store ? "white" : "black",
+          cursor: "pointer",
+        }}
+      >
+        {store}
+      </button>
+    ))}
+</div>
+
+
+      {/* INNER TABS */}
+      <div style={{ marginTop: 30 }}>
+        <button
+          onClick={() => setActiveTab("techs")}
+          style={{
+            padding: "8px 18px",
+            background: activeTab === "techs" ? "#0088ff" : "#ccc",
+            border: "none",
+            borderRadius: 6,
+            marginRight: 10,
+            cursor: "pointer",
+            color: "white"
+          }}
+        >
+          Field Techs
+        </button>
+
+        <button
+          onClick={() => setActiveTab("installers")}
+          style={{
+            padding: "8px 18px",
+            background: activeTab === "installers" ? "#e63946" : "#ccc",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            color: "white"
+          }}
+        >
+          Installers
+        </button>
       </div>
 
-      <div style={{ marginTop: "60px" }}>
-        <h2>Total Jobs per Installer</h2>
-        <Bar data={installerChart} />
+      {/* CHART */}
+      <div style={{ marginTop: 40 }}>
+        {activeTab === "techs" && (
+          <>
+            <h2>Open Jobs per Field Tech</h2>
+            <Bar
+              data={buildChart(
+                current.techs,
+                "Open Jobs",
+                "rgba(54, 162, 235, 0.6)"
+              )}
+            />
+          </>
+        )}
+
+        {activeTab === "installers" && (
+          <>
+            <h2>Jobs Assigned per Installer</h2>
+            <Bar
+              data={buildChart(
+                current.installers,
+                "Installer Jobs",
+                "rgba(255, 99, 132, 0.6)"
+              )}
+            />
+          </>
+        )}
       </div>
     </div>
   );

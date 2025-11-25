@@ -8,15 +8,16 @@ export default function JobDetails() {
   const { id } = useParams();
   const [job, setJob] = useState(null);
 
-  useEffect(() => {
-    loadJob();
-  }, [id]);
-
-  async function loadJob() {
+useEffect(() => {
+  async function fetchJob() {
     const data = await apiGet(`/job/${id}`);
     console.log("JOB DETAILS:", data);
     setJob(data);
   }
+
+  fetchJob();
+}, [id]);
+
 
   if (!job) return <div className="loading">Loading...</div>;
 
