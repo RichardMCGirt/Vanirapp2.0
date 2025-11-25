@@ -43,41 +43,30 @@ app.post("/auth/login", (req, res) => {
   res.json({ token: user.token });
 });
 
-//
-// ------------------- JOB LIST -------------------
+
 //
 // =========================================
 // FULL JOB LIST WITH STORE + TRADE + PAID
 // =========================================
 app.get("/jobs", async (req, res) => {
   const sql = `
-    SELECT 
-      J."Id" AS job_id,
-      J."Name" AS job_name,
-      J."CreationTime" AS creationtime,
+    SELECT
+    J."Id" AS job_id,
+    J."Name" AS job_name,
+    S."Name" AS store_name,
+    T."Id" AS trade_id,
+    T."Name" AS trade_name,
+    JC."IsPaid"
+FROM "Jobs" J
+LEFT JOIN "Stores" S
+    ON S."Id" = J."StoreId"
+LEFT JOIN "JobContractors" JC
+    ON JC."JobId" = J."Id"
+LEFT JOIN "Trades" T
+    ON T."StoreId" = J."StoreId"   -- 🔥 THE FIX: Trades are store-based
+ORDER BY J."Id" DESC
+LIMIT 50;
 
-      -- Store
-      S."Name" AS store_name,
-
-      -- Trade (from JobContractors table)
-      T."Name" AS trade_name,
-
-      -- Payment status
-      COALESCE(JC."IsPaid", false) AS ispaid
-
-    FROM "Jobs" J
-    LEFT JOIN "Stores" S 
-      ON S."Id" = J."StoreId"
-
-    LEFT JOIN "JobContractors" JC 
-      ON JC."JobId" = J."Id"
-
-    LEFT JOIN "Trades" T 
-      ON T."Id" = JC."Type"
-
-    WHERE J."IsDeleted" = false
-    ORDER BY J."Id" DESC
-    LIMIT 100;
   `;
 
   try {
@@ -88,6 +77,9 @@ app.get("/jobs", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
+
 
 
 //
