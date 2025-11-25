@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Login from "./pages/Login";
 import Jobs from "./pages/Jobs";
 import JobDetails from "./pages/JobDetails";
+import EditJob from "./pages/EditJob";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("token");
@@ -33,6 +34,16 @@ function App() {
           element={
             <RequireAuth>
               <JobDetails />
+            </RequireAuth>
+          }
+        />
+
+        {/* EDIT JOB PAGE */}
+        <Route
+          path="/job/edit/:id"
+          element={
+            <RequireAuth>
+              <EditJob />
             </RequireAuth>
           }
         />

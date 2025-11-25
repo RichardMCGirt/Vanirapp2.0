@@ -1,157 +1,126 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { apiGet } from "../api/api";
 import "./JobDetails.css";
+import { Link } from "react-router-dom";
 
 export default function JobDetails() {
   const { id } = useParams();
   const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadJob();
-  }, [id]);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(() => {
+  loadDetails();
+}, []);
 
-  async function loadJob() {
-    try {
-      const raw = await apiGet(`/job/${id}`);
-      const trades = await apiGet(`/job/${id}/trades`);
 
-      const mapped = {
-        ...raw,
-        StartDate: raw.startdate || raw.StartDate,
-        Name: raw.name || raw.Name,
-        SidingProduct: raw.SidingProduct || "",
-        FieldTech: raw.FieldTech || "",
-        Builder: raw.builder_name || "",
-        store_name: raw.store_name || "",
-        community_name: raw.community_name || "",
-        Address: raw.locationaddress || raw.LocationAddress || "",
-        PlanOptions: raw.plansandoptions || raw.PlansAndOptions || "",
-        trades: trades || []   // ⭐ ADD TRADES HERE
-      };
+  async function loadDetails() {
+    const data = await apiGet(`/job/${id}`);
+    setJob(data);
+  }
 
-      setJob(mapped);
-      setLoading(false);
-    } catch (err) {
-      console.error("Job load error", err);
-      setLoading(false);
+  if (!job) return <div className="loading">Loading...</div>;
+function formatPrettyDate(dateStr) {
+  if (!dateStr) return "—";
+
+  const date = new Date(dateStr);
+  const day = date.getDate();
+
+  // ordinal suffix: st, nd, rd, th
+  const suffix =
+    day % 10 === 1 && day !== 11 ? "st" :
+    day % 10 === 2 && day !== 12 ? "nd" :
+    day % 10 === 3 && day !== 13 ? "rd" :
+    "th";
+
+  const options = { month: "long", year: "numeric" };
+  const formatted = date.toLocaleDateString("en-US", options);
+
+  return `${formatted.replace(",", "")} ${day}${suffix}, ${date.getFullYear()}`;
+}
+
+  function getStatusText(code) {
+    switch (code) {
+      case 0: return "Ordered";
+      case 1: return "In Progress";
+      case 2: return "Completed";
+      default: return "Unknown";
     }
   }
 
-  if (loading) return <div className="loading">Loading job details...</div>;
-  if (!job) return <div className="error">Job not found</div>;
+  const statusText = getStatusText(job.status || 0);
+  const badgeClass = statusText.toLowerCase().replace(" ", "-");
 
   return (
-    <div className="jobdetails-wrapper">
+    <div className="job-details">
 
-      {/* HEADER */}
-      <div className="header-bar">
-        <h1>Job Details</h1>
-
-        <span className="status-tag">
-          {job.Status === 1 ? "Ordered" : "In Progress"}
-        </span>
-
-        <div className="header-buttons">
-          <button>📅 Timeline</button>
-          <button>📋 Job Audit</button>
-          <button>✏ Edit</button>
-          <Link to="/jobs"><button>⬅ Back</button></Link>
+      <div className="header">
+        <div>
+          <h1>{job.name}</h1>
+          <h2 className={`status-badge ${badgeClass}`}>{statusText}</h2>
         </div>
+
+      <div className="header-buttons">
+  <button
+    className="maps-btn"
+    onClick={() =>
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          job.address
+        )}`
+      )
+    }
+  >
+    📍 Open in Google Maps
+  </button>
+
+  <Link to={`/job/edit/${job.id}`} className="btn small">
+    ✏️ Edit
+  </Link>
+</div>
+
+  
       </div>
 
-      {/* MAIN GRID */}
-      <div className="jobdetails-container">
+      <div className="info-grid">
+        <div className="card">
+          <h3>Job Information</h3>
+          <p><strong>Community:</strong> {job.community_name || "—"}</p>
+          <p><strong>Builder:</strong> {job.builder_name || "—"}</p>
+          <p><strong>Store:</strong> {job.store_name || "—"}</p>
+<p><strong>Start Date:</strong> {formatPrettyDate(job.startdate)}</p>
+          <p><strong>Created:</strong> {new Date(job.creationtime).toLocaleDateString()}</p>
+        </div>
 
-        {/* LEFT PANEL */}
-        <div className="details-panel">
-
-          <div className="detail-item">
-            <span className="detail-label">Job Start Date:</span>
-            <span className="detail-value">
-              {job.StartDate ? new Date(job.StartDate).toLocaleDateString() : "—"}
-            </span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Job Name:</span>
-            <span className="detail-value">{job.Name || "—"}</span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Siding Product Line:</span>
-            <span className="detail-value">{job.SidingProduct || "—"}</span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Field Tech:</span>
-            <span className="detail-value">{job.FieldTech || "—"}</span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Vanir Store:</span>
-            <span className="detail-value">{job.store_name || "—"}</span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Community:</span>
-            <span className="detail-value">{job.community_name || "—"}</span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Builder:</span>
-            <span className="detail-value">{job.Builder || "—"}</span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Construction Manager:</span>
-            <span className="detail-value">
-              {job.ConstructionManager || "Not Selected"}
-            </span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Trades:</span>
-            <span className="detail-value">
-              {job.trades.length === 0
-                ? "—"
-                : job.trades.map((t, i) => (
-                    <div key={i}>
-                      {t.trade_name} — ${Number(t.labor_cost).toFixed(2)}
-                    </div>
-                  ))}
-            </span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Address:</span>
-            <span className="detail-value">{job.Address || "—"}</span>
-          </div>
-
-          <div className="detail-item">
-            <span className="detail-label">Plans & Options:</span>
-            <span className="detail-value">{job.PlanOptions || "—"}</span>
-          </div>
+        <div className="card">
+          <h3>Field Tech</h3>
+        <p><strong></strong> {job.fieldtech_name || "—"}</p>
 
         </div>
 
-        {/* MAP PANEL */}
-        <div className="map-panel">
-          <div className="map-header">
-            <button>🗺 Map</button>
-            <button>🛰 Satellite</button>
-            <button>📍 Open</button>
-          </div>
+     <div className="card">
+  <h3>Trades</h3>
 
-          <div className="map-box">
-            <div className="map-placeholder">
-              Google Map Placeholder <br />
-              <small>(Address: {job.Address || "—"})</small>
-            </div>
-          </div>
-        </div>
+  {(!job.trades || job.trades.length === 0) && <p>— No trades found —</p>}
 
+  {(job.trades || []).map((t, i) => (
+    <div key={i} className="trade-row">
+      <p><strong>{t.trade_name}</strong></p>
+      <p>Labor: {t.labor_cost ? `$${Number(t.labor_cost).toFixed(2)}` : "—"}</p>
+    </div>
+  ))}
+</div>
+
+      </div>
+
+      <div className="card full-width">
+        <h3>Plans & Options</h3>
+        <pre>{job.plansandoptions || "—"}</pre>
+      </div>
+
+      <div className="card full-width">
+        <h3>Address</h3>
+        <p>{job.address || "—"}</p>
       </div>
     </div>
   );

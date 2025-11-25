@@ -18,6 +18,16 @@ export async function apiGet(path) {
     return null;
   }
 }
+export async function apiPut(url, body) {
+const res = await fetch(`${API_URL}${url}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) throw new Error("API PUT error");
+  return res.json();
+}
 
 export async function apiPost(path, body) {
   try {
