@@ -10,14 +10,12 @@ app.use(express.json());
 
 //
 // ------------------- TEST ROUTE -------------------
-//
 app.get("/", (req, res) => {
   res.json({ status: "Backend API running 🚀" });
 });
 
 //
 // ------------------- TEMP LOGIN -------------------
-//
 const testUsers = [
   {
     email: "richard.mcgirt@vanirinstalledsales.com",
@@ -45,9 +43,9 @@ app.post("/auth/login", (req, res) => {
 
 
 //
-// =========================================
-// FULL JOB LIST WITH STORE + TRADE + PAID
-// =========================================
+// ===================================================
+// JOB LIST – STORE + TRADES + LABOR + PAID
+// ===================================================
 app.get("/jobs", async (req, res) => {
   const sql = `
     SELECT
@@ -55,14 +53,13 @@ app.get("/jobs", async (req, res) => {
       J."Name" AS job_name,
       J."CreationTime" AS creationtime,
       S."Name" AS store_name,
+
       T."Name" AS trade_name,
       JT."LaborCost" AS labor_cost,
       COALESCE(JC."IsPaid", false) AS ispaid
 
     FROM "Jobs" J
-    
-    LEFT JOIN "Stores" S
-      ON S."Id" = J."StoreId"
+    LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
 
     LEFT JOIN "JobTrades" JT
       ON JT."JobId" = J."Id"
@@ -74,7 +71,6 @@ app.get("/jobs", async (req, res) => {
       ON JC."JobId" = J."Id"
 
     WHERE J."IsDeleted" = false
-
     ORDER BY J."Id" DESC
     LIMIT 200;
   `;
@@ -89,18 +85,8 @@ app.get("/jobs", async (req, res) => {
 });
 
 
-
-
-
- 
-
-
-
-
-
 //
 // ------------------- JOB FILTERS -------------------
-// MUST come BEFORE "/jobs/:id"
 //
 
 // 1️⃣ Unpaid subcontractors
@@ -157,7 +143,7 @@ app.get("/jobs/onboard", async (req, res) => {
       SC."CreationTime" AS created
     FROM "SubContractorForms" SC
     WHERE SC."IsDeleted" = false
-    AND (SC."HasPrice" = false OR SC."Location" IS NULL)
+      AND (SC."HasPrice" = false OR SC."Location" IS NULL)
     ORDER BY SC."CreationTime" DESC;
   `;
 
@@ -192,18 +178,52 @@ app.get("/jobs/liens", async (req, res) => {
   }
 });
 
+
 //
-// ------------------- JOB DETAILS (must be LAST) -------------------
-//
+// ===================================================
+// JOB DETAILS – FULL WITH TRADES + LABOR + PAID
+// ===================================================
 app.get("/job/:id", async (req, res) => {
   const sql = `
-    SELECT * FROM "Jobs"
-    WHERE "Id" = $1
+    SELECT 
+      J."Id" AS job_id,
+      J."Name" AS job_name,
+      J."CreationTime" AS creationtime,
+      J."JobStartDate",
+      J."Address",
+      J."PlansAndOptions",
+      J."ConstructionManagerId",
+
+      S."Name" AS store_name,
+      C."Name" AS community_name,
+      B."Name" AS builder_name,
+      FT."Name" AS fieldtech_name,
+
+      T."Name" AS trade_name,
+      JT."LaborCost" AS labor_cost,
+      COALESCE(JC."IsPaid", false) AS ispaid
+
+    FROM "Jobs" J
+    LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
+    LEFT JOIN "Communities" C ON C."Id" = J."CommunityId"
+    LEFT JOIN "Builders" B ON B."Id" = J."BuilderId"
+    LEFT JOIN "FieldTechs" FT ON FT."Id" = J."FieldTechId"
+
+    LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
+    LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
+
+    LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
+
+    WHERE J."Id" = $1
   `;
-  const r = await pool.query(sql, [req.params.id]);
-  res.json(r.rows[0]);
+
+  const result = await pool.query(sql, [req.params.id]);
+  res.json(result.rows);
 });
 
+
+//
+// ------------------- RELATED JOB DATA -------------------
 app.get("/job/:id/contractors", async (req, res) => {
   const sql = `
     SELECT JC."Id", U."Name", JC."IsPaid"
@@ -211,6 +231,7 @@ app.get("/job/:id/contractors", async (req, res) => {
     LEFT JOIN "SubContractors" U ON JC."UserId" = U."Id"
     WHERE JC."JobId" = $1
   `;
+
   const r = await pool.query(sql, [req.params.id]);
   res.json(r.rows);
 });
@@ -244,10 +265,8 @@ app.get("/job/:id/store", async (req, res) => {
   res.json(r.rows[0]);
 });
 
+
 //
 // ------------------- START SERVER -------------------
-//
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 API running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 API running on port ${PORT}`));

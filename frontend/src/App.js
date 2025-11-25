@@ -1,9 +1,14 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Jobs from "./pages/Jobs";
 import JobDetails from "./pages/JobDetails";
+
+function RequireAuth({ children }) {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/" replace />;
+}
 
 function App() {
   return (
@@ -13,11 +18,24 @@ function App() {
         {/* LOGIN PAGE */}
         <Route path="/" element={<Login />} />
 
-        {/* JOB LIST */}
-        <Route path="/jobs" element={<Jobs />} />
+        {/* PROTECTED ROUTES */}
+        <Route
+          path="/jobs"
+          element={
+            <RequireAuth>
+              <Jobs />
+            </RequireAuth>
+          }
+        />
 
-        {/* JOB DETAILS */}
-        <Route path="/job/:id" element={<JobDetails />} />
+        <Route
+          path="/job/:id"
+          element={
+            <RequireAuth>
+              <JobDetails />
+            </RequireAuth>
+          }
+        />
 
       </Routes>
     </Router>
