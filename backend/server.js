@@ -57,8 +57,8 @@ app.get("/job/:id", async (req, res) => {
     SELECT
       J."Id" AS job_id,
       J."Name" AS job_name,
-      J."Address" AS address,
-      J."StartDate" AS startdate,
+ J."LocationAddress" AS address,
+       J."StartDate" AS startdate,
       J."CreationTime" AS creationtime,
       J."Status" AS status,
       J."PlansAndOptions" AS plansandoptions,
@@ -201,22 +201,20 @@ app.post("/job/update", async (req, res) => {
 // ================================
 app.get("/jobs", async (req, res) => {
   const sql = `
-   SELECT
+SELECT
   J."Id" AS job_id,
   J."Name" AS job_name,
   J."CreationTime",
   S."Name" AS store_name,
-  
-  -- trades
+
   T."Name" AS trade_name,
   JT."LaborCost" AS labor_cost,
-  JC."IsPaid" AS ispaid,
 
-  -- installer
-  U."Id" AS installer_user_id,
+  JC."IsPaid" AS ispaid,
+  JC."UserId" AS installer_user_id,
+
   U."Name" AS installer_first,
-  U."Surname" AS installer_last,
-  U."EmailAddress" AS installer_email
+  U."Surname" AS installer_last
 
 FROM "Jobs" J
 LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
@@ -225,6 +223,8 @@ LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
 LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
 LEFT JOIN "AbpUsers" U ON U."Id" = JC."UserId"
 
+WHERE JC."UserId" IS NOT NULL     -- 🔥 ENSURES INSTALLER EXISTS
+
 ORDER BY J."CreationTime" DESC
 LIMIT 20;
 
@@ -232,29 +232,13 @@ LIMIT 20;
 
   try {
     const r = await pool.query(sql);
-
-    const jobs = r.rows.map(row => ({
-      id: row.job_id,
-      name: row.job_name,
-      store_name: row.store_name,
-      trade_name: row.trade_name,
-      labor_cost: row.labor_cost,
-
-      installer: {
-        first: row.installer_first,
-        last: row.installer_last,
-        email: row.installer_email
-      }
-    }));
-
-    res.json(jobs);
+    res.json(r.rows);
 
   } catch (err) {
     console.error("Jobs list error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 app.get("/stores", async (req, res) => {
   try {
     const r = await pool.query(`SELECT "Id", "Name" FROM "Stores" ORDER BY "Name" ASC`);

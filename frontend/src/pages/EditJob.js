@@ -133,9 +133,10 @@ export default function EditJob() {
   if (!job) return <div>Job not found</div>;
 
   // Build installer name from job (coming from /job/:id)
-  const installerFullName = `${job.installer_first || ""} ${
-    job.installer_last || ""
-  }`.trim();
+const installerFullName = job.installer
+  ? `${job.installer.first || ""} ${job.installer.last || ""}`.trim()
+  : "";
+
 
   return (
     <div className="edit-job-page">
@@ -170,15 +171,6 @@ export default function EditJob() {
             </option>
           ))}
         </select>
-<label>Installer</label>
-<input
-  value={
-    job.installer
-      ? `${job.installer.first} ${job.installer.last}`
-      : "— No Installer Assigned —"
-  }
-  readOnly
-/>
 
         {/* Store (read-only) */}
         <label>Store</label>
@@ -195,10 +187,6 @@ export default function EditJob() {
         {/* Installer name (read-only, from joined tables) */}
         <label>Installer</label>
         <input value={installerFullName} readOnly />
-
-        {/* Installer email (read-only) */}
-        <label>Installer Email</label>
-        <input value={job.installer_email || ""} readOnly />
 
         {/* Address */}
         <label>Address</label>
