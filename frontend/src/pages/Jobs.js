@@ -20,29 +20,40 @@ export default function Jobs() {
   }
 
   // 1️⃣ Normalize all backend field names
-  const normalized = data.map((j) => ({
-    job_id: j.job_id || j.Id,
-    job_name: j.job_name || j.Name,
-    creationtime: j.creationtime || j.CreationTime,
-    store_name: j.store_name || j.StoreName || j.storename,
-    trade_name: j.trade_name || j.TradeName || j.tradename,
-    labor_cost: j.labor_cost || j.LaborCost || j.laborcost || null,
-    ispaid: j.ispaid || j.IsPaid || false
-  }));
+const normalized = data.map((j) => ({
+  job_id: j.job_id || j.Id,
+  job_name: j.job_name || j.Name,
+  creationtime: j.creationtime || j.CreationTime,
+  store_name: j.store_name || j.StoreName || j.storename,
+
+  trade_name: j.trade_name || j.TradeName,
+  labor_cost: j.labor_cost || j.LaborCost || null,
+  ispaid: j.ispaid || j.IsPaid || false,
+
+  installer: {
+    user_id: j.installer_user_id,
+    first: j.installer_first,
+    last: j.installer_last,
+    email: j.installer_email
+  }
+}));
+
 
   // 2️⃣ GROUP BY job_id and combine trades
   const grouped = {};
 
   normalized.forEach((j) => {
     if (!grouped[j.job_id]) {
-      grouped[j.job_id] = {
-        job_id: j.job_id,
-        job_name: j.job_name,
-        store_name: j.store_name,
-        creationtime: j.creationtime,
-        trades: []
-      };
-    }
+  grouped[j.job_id] = {
+    job_id: j.job_id,
+    job_name: j.job_name,
+    store_name: j.store_name,
+    creationtime: j.creationtime,
+    installer: j.installer,
+    trades: []
+  };
+}
+
 
     grouped[j.job_id].trades.push({
       trade_name: j.trade_name,
@@ -93,7 +104,9 @@ export default function Jobs() {
 
               <p className="job-title">{job.job_name || "Unnamed Job"}</p>
 
-              <p>🏢 Store: {job.store_name || "Unassigned"}</p>
+<p>🏢 Store: {job.store_name || "Unassigned"}</p>
+
+<p>👷 Installer: {job.installer?.first || "—"} {job.installer?.last || ""}</p>
 
            <div className="trade-list">
   {job.trades.map((t, i) => (
@@ -103,8 +116,6 @@ export default function Jobs() {
     </div>
   ))}
 </div>
-
-
 
               <p className="status">
                 💰 {mainTrade?.ispaid ? "✔ Paid" : "⛔ Not Paid"}

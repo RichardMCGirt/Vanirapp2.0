@@ -170,6 +170,15 @@ export default function EditJob() {
             </option>
           ))}
         </select>
+<label>Installer</label>
+<input
+  value={
+    job.installer
+      ? `${job.installer.first} ${job.installer.last}`
+      : "— No Installer Assigned —"
+  }
+  readOnly
+/>
 
         {/* Store (read-only) */}
         <label>Store</label>
