@@ -36,79 +36,72 @@ app.post("/auth/login", (req, res) => {
 // ================================
 app.get("/job/:id", async (req, res) => {
   const sql = `
-    SELECT
-      J."Id",
-      J."Name",
-      J."StartDate",
-      J."CreationTime",
-      J."Status",
-      J."PlansAndOptions",
-      J."LocationAddress",
+    SELECT 
+      J."Id" AS id,
+      J."Name" AS name,
+      J."StartDate" AS startdate,
+      J."CreationTime" AS creationtime,
+      J."Status" AS status,
+      J."PlansAndOptions" AS plansandoptions,
+      J."Address" AS address,
 
       S."Name" AS store_name,
       C."Name" AS community_name,
       B."Name" AS builder_name,
 
-      -- Field Tech (CORRECT table: AbpUsers)
--- Field Tech (display real name)
-FT."Name" AS fieldtech_first,
-FT."Surname" AS fieldtech_last,
+      U."Id" AS fieldtech_id,
+      U."Name" AS fieldtech_first,
+      U."Surname" AS fieldtech_last,
 
-
-      -- Trades + cost + payment
       T."Name" AS trade_name,
       JT."LaborCost" AS labor_cost,
       JC."IsPaid" AS ispaid
 
     FROM "Jobs" J
-
     LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
     LEFT JOIN "Communities" C ON C."Id" = J."CommunityId"
     LEFT JOIN "Builders" B ON B."Id" = J."BuilderId"
-
-    -- FieldTechId → AbpUsers.Id
-LEFT JOIN "AbpUsers" FT ON FT."Id" = J."FieldTechId"
-
+    LEFT JOIN "AbpUsers" U ON U."Id" = J."FieldTechId"
     LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
     LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
-
     LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
 
-    WHERE J."Id" = $1;
+    WHERE J."Id" = $1
   `;
 
   try {
     const r = await pool.query(sql, [req.params.id]);
-
     if (r.rows.length === 0) return res.json(null);
 
+    const row = r.rows[0];
+
     const base = {
-      id: r.rows[0].Id,
-      name: r.rows[0].Name,
-      startdate: r.rows[0].StartDate,
-      creationtime: r.rows[0].CreationTime,
-      status: r.rows[0].Status,
-      plansandoptions: r.rows[0].PlansAndOptions,
-      address: r.rows[0].LocationAddress,
-      store_name: r.rows[0].store_name,
-      community_name: r.rows[0].community_name,
-      builder_name: r.rows[0].builder_name,
-     fieldtech_name: `${r.rows[0].fieldtech_first || ""} ${r.rows[0].fieldtech_last || ""}`.trim(),
+      id: row.id,
+      name: row.name,
+      startdate: row.startdate,
+      creationtime: row.creationtime,
+      status: row.status,
+      plansandoptions: row.plansandoptions,
+      address: row.address,
+      store_name: row.store_name,
+      community_name: row.community_name,
+      builder_name: row.builder_name,
+
+      fieldtech_id: row.fieldtech_id || null,
+      fieldtech_name: `${row.fieldtech_first || ""} ${row.fieldtech_last || ""}`.trim(),
 
       trades: []
     };
 
-    r.rows.forEach(row => {
-      if (row.trade_name) {
+    r.rows.forEach(tr => {
+      if (tr.trade_name) {
         base.trades.push({
-          trade_name: row.trade_name,
-          labor_cost: row.labor_cost,
-          ispaid: row.ispaid
+          trade_name: tr.trade_name,
+          labor_cost: tr.labor_cost,
+          ispaid: tr.ispaid
         });
       }
     });
-
-    base.trades = base.trades || [];
 
     res.json(base);
 
@@ -117,6 +110,7 @@ LEFT JOIN "AbpUsers" FT ON FT."Id" = J."FieldTechId"
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 // ================================

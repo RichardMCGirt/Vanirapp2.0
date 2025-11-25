@@ -1,273 +1,241 @@
-import React, { useEffect, useState } from "react";
+// src/pages/EditJob.js
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "./JobDetails.css"; // or EditJob.css
-import { apiGet, apiPut } from "../api/api"; // your helper
+import { apiGet, apiPost } from "../api/api";
 
 export default function EditJob() {
   const { id } = useParams();
   const navigate = useNavigate();
-const [storeName, setStoreName] = useState("");
-const [communityName, setCommunityName] = useState("");
-const [builderName, setBuilderName] = useState("");
 
-  // -----------------------------
+  // -------------------------
   // STATE
-  // -----------------------------
-  const [job, setJob] = useState(null);
+  // -------------------------
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [job, setJob] = useState(null);
 
   const [stores, setStores] = useState([]);
   const [builders, setBuilders] = useState([]);
   const [communities, setCommunities] = useState([]);
-  const [fieldTechs, setFieldTechs] = useState([]);
+  const [fieldtechs, setFieldTechs] = useState([]);
 
-  // -----------------------------
-  // FETCH JOB + DROPDOWNS
-  // -----------------------------
+  // READ-ONLY DISPLAY FIELDS
+  const [storeName, setStoreName] = useState("");
+  const [communityName, setCommunityName] = useState("");
+  const [builderName, setBuilderName] = useState("");
+
+  // Field Tech dropdown
+  const [selectedTech, setSelectedTech] = useState("");
+
+  // Editable job fields
+  const [jobName, setJobName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [address, setAddress] = useState("");
+  const [plansAndOptions, setPlansAndOptions] = useState("");
+
+  // Trades
+  const [trades, setTrades] = useState([]);
+
+  // -------------------------
+  // LOAD ALL DATA
+  // -------------------------
   useEffect(() => {
-  async function loadAll() {
-    try {
-      // 1️⃣ Load job first
-      const jobData = await apiGet(`/job/${id}`);
+    async function loadAll() {
+      try {
+        // 1️⃣ Load main job record
+        const jobData = await apiGet(`/job/${id}`);
+        if (!jobData) {
+          console.error("❌ Job not found");
+          return;
+        }
 
-      if (!jobData) {
-        console.error("❌ No job found");
-        return;
+        setJob(jobData);
+
+        // Fill UI with job values
+        setJobName(jobData.name || "");
+        setAddress(jobData.address || "");
+        setPlansAndOptions(jobData.plansandoptions || "");
+
+        // Start date formatting (convert from ISO → input-local)
+        if (jobData.startdate) {
+          const iso = jobData.startdate;
+          const local = new Date(iso).toISOString().slice(0, 16);
+          setStartDate(local);
+        }
+
+        // Trades
+        setTrades(jobData.trades || []);
+
+        // Read-only fields
+        setStoreName(jobData.store_name || "");
+        setCommunityName(jobData.community_name || "");
+        setBuilderName(jobData.builder_name || "");
+
+        // Pre-select field tech
+        setSelectedTech(jobData.fieldtech_id || "");
+
+        // 2️⃣ Load dropdown datasets (even if read-only, future use)
+        const [storesRes, buildersRes, communitiesRes, fieldtechRes] =
+          await Promise.all([
+            apiGet("/stores"),
+            apiGet("/builders"),
+            apiGet("/communities"),
+            apiGet("/fieldtechs"),
+          ]);
+
+        setStores(storesRes || []);
+        setBuilders(buildersRes || []);
+        setCommunities(communitiesRes || []);
+        setFieldTechs(fieldtechRes || []);
+      } catch (err) {
+        console.error("Error loading job:", err);
+      } finally {
+        setLoading(false);
       }
-
-      setJob(jobData);
-
-      // 2️⃣ Load supporting lists
-      const [storesRes, buildersRes, communitiesRes, fieldtechRes] =
-        await Promise.all([
-          apiGet("/stores"),
-          apiGet("/builders"),
-          apiGet("/communities"),
-          apiGet("/fieldtechs")
-        ]);
-
-      // 3️⃣ Save lists (even if they are not dropdowns anymore, needed later)
-      setStores(storesRes || []);
-      setBuilders(buildersRes || []);
-      setCommunities(communitiesRes || []);
-      setFieldTechs(fieldtechRes || []);
-
-      // 4️⃣ Set read-only display values safely
-      setStoreName(jobData.store_name || "");
-      setCommunityName(jobData.community_name || "");
-      setBuilderName(jobData.builder_name || "");
-
-    } catch (err) {
-      console.error("Error loading job:", err);
-    } finally {
-      setLoading(false);
     }
-  }
 
-  loadAll();
-}, [id]);
+    loadAll();
+  }, [id]);
 
-
-  // -----------------------------
-  // HELPERS
-  // -----------------------------
-  function formatDateForInput(utc) {
-    if (!utc) return "";
-    const d = new Date(utc);
-    const iso = d.toISOString();
-    return iso.substring(0, 16); // datetime-local friendly
-  }
-
-  function formatDatePretty(utc) {
-    const date = new Date(utc);
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  }
-
-  function updateField(field, value) {
-    setJob((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function updateTrade(index, field, value) {
-    const updated = [...job.trades];
-    updated[index][field] = value;
-    setJob((prev) => ({ ...prev, trades: updated }));
-  }
-
-  // -----------------------------
-  // SAVE JOB
-  // -----------------------------
+  // -------------------------
+  // SAVE UPDATED JOB
+  // -------------------------
   async function handleSave() {
-    if (!job) return;
-    setSaving(true);
-
     try {
-      // Build the payload your backend expects
       const payload = {
-        id: job.id,
-        name: job.name,
-        fieldTechId: job.fieldTechId,
-        materialId: job.materialId,
-        storeId: job.storeId,
-        builderId: job.builderId,
-        communityId: job.communityId,
-        Longitude: job.longitude,
-        Latitude: job.latitude,
-        status: job.status,
-        Colors: job.Colors || [],
-        locationAddress: job.address,
-        plansAndOptions: job.plansandoptions,
-        startDate: job.startdate,
-        trades: job.trades, // since you're not using CrewIQ trade IDs
+        id,
+        name: jobName,
+        startdate: new Date(startDate).toISOString(),
+        address,
+plansandoptions: plansAndOptions,
+        fieldtech_id: selectedTech,
+        trades: trades.map((t) => ({
+          id: t.id,
+          trade_name: t.trade_name,
+          labor_cost: t.labor_cost,
+        })),
       };
 
-      await apiPut("/job/Update", payload);
+      await apiPost("/job/update", payload);
 
-      alert("Job saved successfully!");
+      alert("Job updated!");
       navigate(`/job/${id}`);
     } catch (err) {
       console.error("Save error:", err);
-      alert("Error saving job!");
-    } finally {
-      setSaving(false);
+      alert("Error saving job.");
     }
   }
 
-  // -----------------------------
-  // UI LOADING
-  // -----------------------------
-  if (loading || !job) return <div className="loading">Loading job...</div>;
+  // -------------------------
+  // RENDER
+  // -------------------------
+  if (loading) return <div>Loading...</div>;
+  if (!job) return <div>Job not found</div>;
 
   return (
-    <div className="edit-job-container">
-      <h1 className="page-title">Edit Job</h1>
+    <div style={{ padding: "20px" }}>
+      <h1>Edit Job</h1>
 
-      <div className="edit-grid">
-        {/* Job Name */}
-        <div className="form-group">
-          <label>Job Name</label>
+      {/* --------------------- */}
+      {/* Job Name */}
+      {/* --------------------- */}
+      <label><strong>Job Name</strong></label><br />
+      <input
+        value={jobName}
+        onChange={(e) => setJobName(e.target.value)}
+        style={{ width: "300px" }}
+      /><br /><br />
+
+      {/* --------------------- */}
+      {/* Start Date */}
+      {/* --------------------- */}
+      <label><strong>Start Date</strong></label><br />
+      <input
+        type="datetime-local"
+        value={startDate}
+        onChange={(e) => setStartDate(e.target.value)}
+        style={{ width: "250px" }}
+      /><br /><br />
+
+      {/* --------------------- */}
+      {/* Field Tech Dropdown */}
+      {/* --------------------- */}
+      <label><strong>Field Tech</strong></label><br />
+      <select
+        value={selectedTech}
+        onChange={(e) => setSelectedTech(e.target.value)}
+        style={{ width: "250px" }}
+      >
+        <option value="">Select Field Tech</option>
+        {fieldtechs.map((tech) => (
+          <option key={tech.id} value={tech.id}>
+            {tech.name}
+          </option>
+        ))}
+      </select>
+
+      <br /><br />
+
+      {/* --------------------- */}
+      {/* READ-ONLY FIELDS */}
+      {/* --------------------- */}
+      <label><strong>Store</strong></label><br />
+      <input value={storeName} readOnly style={{ width: "250px" }} /><br /><br />
+
+      <label><strong>Community</strong></label><br />
+      <input value={communityName} readOnly style={{ width: "250px" }} /><br /><br />
+
+      <label><strong>Builder</strong></label><br />
+      <input value={builderName} readOnly style={{ width: "250px" }} /><br /><br />
+
+      {/* --------------------- */}
+      {/* Address */}
+      {/* --------------------- */}
+      <label><strong>Address</strong></label><br />
+      <input
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        style={{ width: "350px" }}
+      /><br /><br />
+
+      {/* --------------------- */}
+      {/* Plans and Options */}
+      {/* --------------------- */}
+      <label><strong>Plans & Options</strong></label><br />
+      <textarea
+        value={plansAndOptions}
+        onChange={(e) => setPlansAndOptions(e.target.value)}
+        rows="4"
+        cols="50"
+      /><br /><br />
+
+      {/* --------------------- */}
+      {/* Trades */}
+      {/* --------------------- */}
+      <h2>Trades</h2>
+      {trades.map((t, idx) => (
+        <div key={t.id} style={{ marginBottom: "10px" }}>
+          <label><strong>{t.trade_name}</strong></label><br />
           <input
             type="text"
-            value={job.name || ""}
-            onChange={(e) => updateField("name", e.target.value)}
+            value={t.labor_cost}
+            onChange={(e) => {
+              const updated = [...trades];
+              updated[idx].labor_cost = e.target.value;
+              setTrades(updated);
+            }}
+            style={{ width: "150px" }}
           />
         </div>
+      ))}
 
-        {/* Start Date */}
-        <div className="form-group">
-          <label>Start Date</label>
-          <input
-            type="datetime-local"
-            value={formatDateForInput(job.startdate)}
-            onChange={(e) => updateField("startdate", e.target.value)}
-          />
-          <small>Pretty: {formatDatePretty(job.startdate)}</small>
-        </div>
+      <br /><br />
 
-        {/* Field Tech */}
-        <div className="form-group">
-          <label>Field Tech</label>
-          <select
-            value={job.fieldTechId || ""}
-            onChange={(e) => updateField("fieldTechId", e.target.value)}
-          >
-            <option value="">Select Field Tech</option>
-            {fieldTechs.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Store */}
-        <div className="form-group">
-          <label>Store</label>
-        <input
-  type="text"
-  value={storeName}
-  readOnly
-  className="read-only-input"
-/>
-
-        </div>
-
-        {/* Community */}
-        <div className="form-group">
-          <label>Community</label>
-       <input
-  type="text"
-  value={communityName}
-  readOnly
-  className="read-only-input"
-/>
-
-
-        </div>
-
-        {/* Builder */}
-        <div className="form-group">
-          <label>Builder</label>
-          <input
-  type="text"
-  value={builderName}
-  readOnly
-  className="read-only-input"
-/>
-
-        </div>
-
-        {/* Address */}
-        <div className="form-full">
-          <label>Address</label>
-          <input
-            type="text"
-            value={job.address || ""}
-            onChange={(e) => updateField("address", e.target.value)}
-          />
-        </div>
-
-        {/* Plans & Options */}
-        <div className="form-full">
-          <label>Plans & Options</label>
-          <textarea
-            rows="4"
-            value={job.plansandoptions || ""}
-            onChange={(e) => updateField("plansandoptions", e.target.value)}
-          />
-        </div>
-
-        {/* Trades */}
-        <div className="form-full trades-section">
-          <h2>Trades</h2>
-          {job.trades?.map((t, idx) => (
-            <div className="trade-row" key={idx}>
-              <span className="trade-name">{t.trade_name}</span>
-              <input
-                type="number"
-                step="0.01"
-                value={t.labor_cost}
-                onChange={(e) => updateTrade(idx, "labor_cost", e.target.value)}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
+      {/* --------------------- */}
       {/* SAVE BUTTON */}
-      <div className="save-container">
-        <button
-          className="save-button"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-      </div>
+      {/* --------------------- */}
+      <button onClick={handleSave} style={{ padding: "10px 20px" }}>
+        Save
+      </button>
     </div>
   );
 }
