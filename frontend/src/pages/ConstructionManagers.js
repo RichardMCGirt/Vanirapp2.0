@@ -104,7 +104,7 @@ function formatPhone(num) {
                       <tr key={m.Id}>
                         <td>{m.Id}</td>
                         <td>{m.FullName || "—"}</td>
-<td>{formatPhone(cm.PhoneNumber)}</td>
+<td>{formatPhone(m.PhoneNumber)}</td>
                       </tr>
                     ))}
                   </tbody>
