@@ -1,7 +1,6 @@
 // src/pages/Subcontractors.js
 import React, { useEffect, useState } from "react";
-import { apiGet, apiPost, apiPut, apiDelete } from "../api/api";
-import SubcontractorFormModal from "../components/SubcontractorFormModal";
+import { apiGet } from "../api/api";
 import "./Subcontractors.css";
 
 export default function Subcontractors() {
@@ -9,49 +8,54 @@ export default function Subcontractors() {
   const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-
   const [activeSub, setActiveSub] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editItem, setEditItem] = useState(null);
+
+console.log("Base:", process.env.REACT_APP_AIRTABLE_BASE);
+console.log("Table:", process.env.REACT_APP_AIRTABLE_TABLE);
+console.log("View:", process.env.REACT_APP_AIRTABLE_VIEW);
+console.log("Key:", process.env.REACT_APP_AIRTABLE_KEY?.substring(0, 5) + "...");
 
   useEffect(() => {
     load();
   }, []);
 
-  async function load() {
-    setLoading(true);
-    const res = await apiGet("/subcontractors");
-    setList(res);
-    setFiltered(res);
+async function load() {
+  setLoading(true);
+
+  const res = await apiGet("/subcontractors-users");
+
+  console.log("🔵 API /subcontractors-users response:", res);
+
+  if (!Array.isArray(res)) {
+    console.error("❌ ERROR: API did not return an array!", res);
+    setList([]);
+    setFiltered([]);
     setLoading(false);
+    return;
   }
 
-  // Search
+  const cleaned = res.filter(u =>
+    !u.UserName?.toLowerCase().includes("vanir") &&
+    !u.UserName?.toLowerCase().includes("techverx")
+  );
+
+  console.log("🟢 Cleaned Users:", cleaned);
+
+  setList(cleaned);
+  setFiltered(cleaned);
+  setLoading(false);
+}
+  // Search filter
   useEffect(() => {
     const s = list.filter((r) => {
       return (
-        (r.installername || "").toLowerCase().includes(search.toLowerCase()) ||
-        (r.contractorname || "").toLowerCase().includes(search.toLowerCase())
+        (r.UserName || "").toLowerCase().includes(search.toLowerCase()) ||
+        (r.Name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (r.Surname || "").toLowerCase().includes(search.toLowerCase())
       );
     });
     setFiltered(s);
   }, [search, list]);
-
-  function openEdit(item) {
-    setEditItem(item);
-    setModalOpen(true);
-  }
-
-  async function deleteItem(id) {
-    if (!window.confirm("Delete this subcontractor?")) return;
-    await apiDelete(`/subcontractors/${id}`);
-    load();
-  }
-
-  async function restore(id) {
-    await apiPost(`/subcontractors/restore/${id}`);
-    load();
-  }
 
   return (
     <div className="sub-page">
@@ -65,16 +69,6 @@ export default function Subcontractors() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-
-        <button
-          className="add-btn"
-          onClick={() => {
-            setEditItem(null);
-            setModalOpen(true);
-          }}
-        >
-          + Add Subcontractor
-        </button>
       </div>
 
       {loading ? (
@@ -84,67 +78,35 @@ export default function Subcontractors() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Installer</th>
-              <th>Contractor</th>
-              <th>Title</th>
-              <th>UserId</th>
-              <th>Status</th>
-              <th></th>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Store</th>
+              <th>General Liability Exp.</th>
+              <th>Workers Comp Exp.</th>
+              <th>Auto Liability Exp.</th>
             </tr>
           </thead>
 
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id} onClick={() => setActiveSub(r)}>
-                <td>{r.id}</td>
-                <td>{r.installername}</td>
-                <td>{r.contractorname}</td>
-                <td>{r.contractortitle}</td>
-                <td>{r.userid}</td>
-                <td style={{ color: r.isdeleted ? "red" : "green" }}>
-                  {r.isdeleted ? "Deleted" : "Active"}
-                </td>
-
-                <td>
-                  <button
-                    className="small-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEdit(r);
-                    }}
-                  >
-                    Edit
-                  </button>
-
-                  {!r.isdeleted ? (
-                    <button
-                      className="small-btn delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteItem(r.id);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  ) : (
-                    <button
-                      className="small-btn restore"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        restore(r.id);
-                      }}
-                    >
-                      Restore
-                    </button>
-                  )}
-                </td>
+<tr key={r.Id} onClick={() => {
+  console.log("👉 Selected subcontractor:", r);
+  setActiveSub(r);
+}}>
+                <td>{r.Id}</td>
+                <td>{r.UserName}</td>
+                <td>{r.Name} {r.Surname}</td>
+                <td>{r.StoreName || "—"}</td>
+                <td>{r.GeneralLiability || "—"}</td>
+                <td>{r.WorkersComp || "—"}</td>
+                <td>{r.AutoLiability || "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
 
-      {/* Detail Panel */}
+      {/* RIGHT SIDE DETAILS PANEL */}
       {activeSub && (
         <div className="details-panel">
           <button className="close-btn" onClick={() => setActiveSub(null)}>
@@ -153,29 +115,19 @@ export default function Subcontractors() {
 
           <h2>Details</h2>
 
-          <p><strong>ID:</strong> {activeSub.id}</p>
-          <p><strong>Installer:</strong> {activeSub.installername}</p>
-          <p><strong>Contractor:</strong> {activeSub.contractorname}</p>
-          <p><strong>Title:</strong> {activeSub.contractortitle}</p>
-          <p><strong>User ID:</strong> {activeSub.userid}</p>
+          <p><strong>ID:</strong> {activeSub.Id}</p>
+          <p><strong>Email:</strong> {activeSub.UserName}</p>
+          <p><strong>Name:</strong> {activeSub.Name} {activeSub.Surname}</p>
+          <p><strong>Store:</strong> {activeSub.StoreName}</p>
 
-          <p><strong>Created:</strong> {activeSub.creationtime}</p>
-          <p><strong>Modified:</strong> {activeSub.lastmodificationtime || "—"}</p>
-          <p><strong>Deleted:</strong> {activeSub.isdeleted ? "Yes" : "No"}</p>
+<p><strong>General Liability Exp:</strong> {activeSub.GeneralLiability || "—"}</p>
+<p><strong>Workers Comp Exp:</strong> {activeSub.WorkersComp || "—"}</p>
+<p><strong>Auto Liability Exp:</strong> {activeSub.AutoLiability || "—"}</p>
+
+
         </div>
       )}
 
-      {/* Modal */}
-      {modalOpen && (
-        <SubcontractorFormModal
-          onClose={() => setModalOpen(false)}
-          onSaved={() => {
-            setModalOpen(false);
-            load();
-          }}
-          editItem={editItem}
-        />
-      )}
     </div>
   );
 }

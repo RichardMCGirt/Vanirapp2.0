@@ -4,7 +4,9 @@ const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
 const crypto = require("crypto");
-
+const Airtable = require("airtable");
+const airtable = new Airtable({ apiKey: process.env.AIRTABLE_KEY })
+  .base(process.env.AIRTABLE_BASE);
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -284,33 +286,69 @@ app.get("/jobs/lien", async (req, res) => {
     res.status(500).json({ error: "Server error fetching lien jobs" });
   }
 });
-// GET all subcontractor form records
-app.get("/subcontractors", async (req, res) => {
+
+// GET subcontractors from Users table (non-Vanir emails)
+app.get("/subcontractors-users", async (req, res) => {
   try {
-    const r = await pool.query(`
-      SELECT *
-      FROM public."SubContractorForms"
-      ORDER BY "Id" ASC
-    `);
+    console.log("🔵 Loading subcontractor users + Airtable…");
 
-const formatted = r.rows.map(s => ({
-  id: s.Id,
-  installername: s.InstallerName,
-  contractorname: s.ContractorName,
-  contractortitle: s.ContractorTitle,
-  userid: s.UserId,
-  creationtime: s.CreationTime,
-  lastmodificationtime: s.LastModificationTime,
-  isdeleted: s.IsDeleted,
-  deletiontime: s.DeletionTime
-}));
+    // Load USERS
+    const sql = `
+      SELECT 
+        u."Id",
+        u."EmailAddress" AS "UserName",
+        u."Name",
+        u."Surname",
+        u."StoreId",
+        s."Name" AS "StoreName"
+      FROM public."AbpUsers" u
+      LEFT JOIN public."Stores" s ON s."Id" = u."StoreId"
+      WHERE u."IsDeleted" = false
+      AND LOWER(u."EmailAddress") NOT LIKE '%vanir%'
+      AND LOWER(u."EmailAddress") NOT LIKE '%techverx%'
+      ORDER BY u."EmailAddress" ASC
+    `;
 
-res.json(formatted);
+    const users = (await pool.query(sql)).rows;
+
+    console.log("📌 Users found:", users.length);
+
+    // Load Airtable
+    const airtableRecords = await airtable(process.env.AIRTABLE_TABLE)
+      .select({ view: process.env.AIRTABLE_VIEW })
+      .all();
+
+    console.log("📌 Airtable rows:", airtableRecords.length);
+
+    // Build lookup map by email (case-insensitive)
+    const airtableByEmail = {};
+    airtableRecords.forEach(rec => {
+      const email = rec.fields["Subcontractor Email"];
+      if (email) {
+        airtableByEmail[email.toLowerCase()] = rec.fields;
+      }
+    });
+
+    // Merge Users + Airtable
+    const merged = users.map(u => {
+      const air = airtableByEmail[u.UserName.toLowerCase()] || {};
+
+      return {
+        ...u,
+        GeneralLiability: air["General Liability Expiration Date"] || null,
+        WorkersComp: air["Worker's Comp Expiration Date"] || null,
+        AutoLiability: air["Auto Liability Expiration Date"] || null
+      };
+    });
+
+    res.json(merged);
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Users subcontractor error:", err);
+    res.status(500).json({ error: "Server error loading subcontractors" });
   }
 });
+
 //
 // ---------------- SUBCONTRACTORS CRUD ----------------
 //
