@@ -170,6 +170,9 @@ console.log("DEBUG JOBS:", Object.values(grouped));
 
           return (
             <Link to={`/job/${job.job_id}`} key={job.job_id} className="card clickable">
+<Link to="/subcontractors" className="btn small">
+  Manage Subcontractors →
+</Link>
 
               <p className="job-title">{job.job_name || "Unnamed Job"}</p>
 

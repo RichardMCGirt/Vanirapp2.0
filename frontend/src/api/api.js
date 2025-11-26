@@ -28,6 +28,19 @@ const res = await fetch(`${API_URL}${url}`, {
   if (!res.ok) throw new Error("API PUT error");
   return res.json();
 }
+export async function apiDelete(url) {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(process.env.REACT_APP_API_URL + url, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : ""
+    }
+  });
+
+  return res.json();
+}
 
 export async function apiPost(path, body) {
   try {

@@ -48,6 +48,71 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
+app.get("/dashboard/workloads", async (req, res) => {
+  try {
+    const sql = `
+      WITH valid_jobs AS (
+        SELECT * FROM public."Jobs"
+        WHERE "Status" NOT IN (3,4)   -- exclude completed
+      )
+
+      -- FIELD TECHS
+      SELECT
+        s."Name" AS store,
+        ft."Id" AS user_id,
+        (ft."Name" || ' ' || ft."Surname") AS full_name,
+        COUNT(vj."Id") AS count,
+        'tech' AS type
+      FROM valid_jobs vj
+      JOIN public."Stores" s ON s."Id" = vj."StoreId"
+      JOIN public."AbpUsers" ft ON ft."Id" = vj."FieldTechId"
+      GROUP BY store, user_id, full_name
+
+      UNION ALL
+
+      -- INSTALLERS
+      SELECT
+        s."Name" AS store,
+        u."Id" AS user_id,
+        (u."Name" || ' ' || u."Surname") AS full_name,
+        COUNT(vj."Id") AS count,
+        'installer' AS type
+      FROM valid_jobs vj
+      JOIN public."Stores" s ON s."Id" = vj."StoreId"
+      JOIN public."JobContractors" jc ON jc."JobId" = vj."Id"
+      JOIN public."AbpUsers" u ON u."Id" = jc."UserId"
+      GROUP BY store, user_id, full_name
+    `;
+
+    const result = await pool.query(sql);
+
+    // Organize by store
+    const stores = {};
+
+    result.rows.forEach(row => {
+      if (!stores[row.store]) {
+        stores[row.store] = { techs: [], installers: [] };
+      }
+
+      const entry = {
+        id: row.user_id,
+        name: row.full_name,
+        count: Number(row.count)
+      };
+
+      if (row.type === "tech") stores[row.store].techs.push(entry);
+      else stores[row.store].installers.push(entry);
+    });
+
+    res.json(stores);
+
+  } catch (err) {
+    console.error("Dashboard error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 
 // ================================
 // GET JOB DETAILS (WITH INSTALLER)
@@ -195,6 +260,180 @@ app.post("/job/update", async (req, res) => {
   }
 });
 
+// ================================
+// GET 20 LIEN NUMBER JOBS
+// ================================
+app.get("/jobs/lien", async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        "Id" AS job_id,
+        "Name" AS job_name,
+        "LienNumber" AS lien_number
+      FROM "Jobs"
+      WHERE "LienNumber" IS NOT NULL
+      ORDER BY "Id" DESC
+      LIMIT 20
+    `;
+
+    const r = await pool.query(sql);
+    res.json(r.rows);
+
+  } catch (err) {
+    console.error("Lien jobs error:", err);
+    res.status(500).json({ error: "Server error fetching lien jobs" });
+  }
+});
+// GET all subcontractor form records
+app.get("/subcontractors", async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT *
+      FROM public."SubContractorForms"
+      ORDER BY "Id" ASC
+    `);
+
+const formatted = r.rows.map(s => ({
+  id: s.Id,
+  installername: s.InstallerName,
+  contractorname: s.ContractorName,
+  contractortitle: s.ContractorTitle,
+  userid: s.UserId,
+  creationtime: s.CreationTime,
+  lastmodificationtime: s.LastModificationTime,
+  isdeleted: s.IsDeleted,
+  deletiontime: s.DeletionTime
+}));
+
+res.json(formatted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+//
+// ---------------- SUBCONTRACTORS CRUD ----------------
+//
+
+// GET all
+app.get("/subcontractors", async (req, res) => {
+  try {
+    const q = `
+      SELECT * 
+      FROM public."SubContractorForms"
+      ORDER BY "Id" ASC
+    `;
+    const r = await pool.query(q);
+    res.json(r.rows);
+  } catch (err) {
+    console.error("❌ /subcontractors GET error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET one by ID
+app.get("/subcontractors/:id", async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT * FROM public."SubContractorForms" WHERE "Id" = $1`,
+      [req.params.id]
+    );
+    res.json(r.rows[0] || null);
+  } catch (err) {
+    console.error("❌ /subcontractors/:id error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// CREATE
+app.post("/subcontractors", async (req, res) => {
+  try {
+    const { installername, contractorname, contractortitle, userid } = req.body;
+
+    const r = await pool.query(
+      `
+      INSERT INTO public."SubContractorForms"
+      ("InstallerName", "ContractorName", "ContractorTitle", "UserId", "CreationTime", "IsDeleted")
+      VALUES ($1, $2, $3, $4, NOW(), false)
+      RETURNING *
+    `,
+      [installername, contractorname, contractortitle, userid]
+    );
+
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error("❌ POST /subcontractors error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// UPDATE
+app.put("/subcontractors/:id", async (req, res) => {
+  try {
+    const { installername, contractorname, contractortitle, userid } = req.body;
+
+    const r = await pool.query(
+      `
+      UPDATE public."SubContractorForms"
+      SET "InstallerName"=$1,
+          "ContractorName"=$2,
+          "ContractorTitle"=$3,
+          "UserId"=$4,
+          "LastModificationTime"=NOW()
+      WHERE "Id"=$5
+      RETURNING *
+      `,
+      [installername, contractorname, contractortitle, userid, req.params.id]
+    );
+
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error("❌ PUT /subcontractors error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// SOFT DELETE
+app.delete("/subcontractors/:id", async (req, res) => {
+  try {
+    const r = await pool.query(
+      `
+      UPDATE public."SubContractorForms"
+      SET "IsDeleted" = true,
+          "DeletionTime" = NOW()
+      WHERE "Id" = $1
+      RETURNING *
+      `,
+      [req.params.id]
+    );
+
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error("❌ DELETE /subcontractors error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// RESTORE
+app.post("/subcontractors/restore/:id", async (req, res) => {
+  try {
+    const r = await pool.query(
+      `
+      UPDATE public."SubContractorForms"
+      SET "IsDeleted" = false,
+          "DeletionTime" = null
+      WHERE "Id" = $1
+      RETURNING *
+      `,
+      [req.params.id]
+    );
+
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error("❌ RESTORE /subcontractors error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // ================================
 // GET LAST 20 JOBS
@@ -205,6 +444,7 @@ SELECT
   J."Id" AS job_id,
   J."Name" AS job_name,
   J."CreationTime",
+  J."LienNumber" AS lien_number,  -- ✅ ADD THIS
   S."Name" AS store_name,
 
   T."Name" AS trade_name,
@@ -216,6 +456,8 @@ SELECT
   U."Name" AS installer_first,
   U."Surname" AS installer_last
 
+
+
 FROM "Jobs" J
 LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
 LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
@@ -223,10 +465,10 @@ LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
 LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
 LEFT JOIN "AbpUsers" U ON U."Id" = JC."UserId"
 
-WHERE JC."UserId" IS NOT NULL     -- 🔥 ENSURES INSTALLER EXISTS
+WHERE 1=1
 
 ORDER BY J."CreationTime" DESC
-LIMIT 20;
+LIMIT 30000;
 
   `;
 
@@ -241,13 +483,18 @@ LIMIT 20;
 });
 app.get("/stores", async (req, res) => {
   try {
-    const r = await pool.query(`SELECT "Id", "Name" FROM "Stores" ORDER BY "Name" ASC`);
+    const r = await pool.query(`
+      SELECT "Id", "Name"
+      FROM public."Stores"
+      ORDER BY "Name" ASC
+    `);
     res.json(r.rows);
   } catch (err) {
     console.error("Stores error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 app.get("/builders", async (req, res) => {
   try {
     const r = await pool.query(`SELECT "Id", "Name" FROM "Builders" ORDER BY "Name" ASC`);
@@ -259,13 +506,25 @@ app.get("/builders", async (req, res) => {
 });
 app.get("/communities", async (req, res) => {
   try {
-    const r = await pool.query(`SELECT "Id", "Name" FROM "Communities" ORDER BY "Name" ASC`);
+    const r = await pool.query(`
+      SELECT 
+        "Id",
+        "Name",
+        "StoreId",
+        "LaborReduction",
+        "IsDeleted"
+      FROM public."Communities"
+      ORDER BY "StoreId", "Name" ASC
+    `);
+
     res.json(r.rows);
   } catch (err) {
     console.error("Communities error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
 app.get("/fieldtechs", async (req, res) => {
   try {
     const r = await pool.query(`

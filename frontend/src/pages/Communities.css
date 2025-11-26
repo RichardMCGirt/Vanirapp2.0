@@ -1,0 +1,36 @@
+.search-box {
+  width: 300px;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.store-section {
+  margin-bottom: 40px;
+}
+
+.store-title {
+  background: #004aad;
+  color: white;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.community-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.community-table th {
+  background: #004aad;
+  color: white;
+  padding: 10px;
+  text-align: left;
+}
+
+.community-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
