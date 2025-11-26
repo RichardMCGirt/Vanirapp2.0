@@ -508,18 +508,66 @@ app.get("/communities", async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT 
+        C."Id" AS community_id,
+        C."Name" AS community_name,
+        C."StoreId",
+        C."LaborReduction",
+        BC."BuilderId",
+        B."Name" AS builder_name
+      FROM public."Communities" C
+      LEFT JOIN public."BuilderCommunities" BC 
+        ON BC."CommunityId" = C."Id"
+      LEFT JOIN public."Builders" B 
+        ON B."Id" = BC."BuilderId"
+      ORDER BY C."StoreId", C."Name" ASC
+    `);
+
+    const map = {};
+
+    r.rows.forEach(row => {
+      if (!map[row.community_id]) {
+        map[row.community_id] = {
+          Id: row.community_id,
+          Name: row.community_name,
+          StoreId: row.StoreId,
+          LaborReduction: row.LaborReduction,
+          builders: []
+        };
+      }
+
+      if (row.BuilderId) {
+        map[row.community_id].builders.push({
+          id: row.BuilderId,
+          name: row.builder_name
+        });
+      }
+    });
+
+    res.json(Object.values(map));
+
+  } catch (err) {
+    console.error("Communities error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.get("/constructionmanagers", async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT 
         "Id",
-        "Name",
-        "StoreId",
-        "LaborReduction",
-        "IsDeleted"
-      FROM public."Communities"
-      ORDER BY "StoreId", "Name" ASC
+        "FullName",
+        "PhoneNumber",
+        "BuilderId",
+        "StoreId"
+      FROM public."ConstructionManagers"
+      WHERE "IsDeleted" = false
+      ORDER BY "StoreId", "BuilderId", "FullName"
     `);
 
     res.json(r.rows);
   } catch (err) {
-    console.error("Communities error:", err);
+    console.error("ConstructionManagers error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });

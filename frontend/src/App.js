@@ -8,6 +8,7 @@ import EditJob from "./pages/EditJob";
 import TechInstallerDashboard from "./pages/TechInstallerDashboard";
 import Subcontractors from "./pages/Subcontractors";
 import Communities from "./pages/Communities";
+import ConstructionManagers from "./pages/ConstructionManagers";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("token");
@@ -31,6 +32,7 @@ function App() {
             </RequireAuth>
           }
         />
+<Route path="/constructionmanagers" element={<ConstructionManagers />} />
 
         <Route
           path="/jobs"

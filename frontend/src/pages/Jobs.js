@@ -127,6 +127,7 @@ console.log("DEBUG JOBS:", Object.values(grouped));
         </Link>
       </div>
     ))}
+<Link to="/constructionmanagers">Construction Managers</Link>
 
   {/* If empty */}
   {jobs.every(job => job.trades.every(t => t.ispaid)) && (

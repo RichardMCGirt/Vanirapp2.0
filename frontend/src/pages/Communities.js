@@ -65,27 +65,36 @@ const storeName = storeMap[c.StoreId] || "Unknown Store";
           <div key={storeName} className="store-section">
             <h2 className="store-title">{storeName}</h2>
 
-            <table className="community-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Community</th>
-                  <th>Labor Reduction</th>
-                </tr>
-              </thead>
+           <table className="community-table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Community</th>
+      <th>Labor Reduction</th>
+      <th>Builders</th>
+    </tr>
+  </thead>
 
-              <tbody>
-                {list.map((c) => (
-                  <tr key={c.Id}>
-                    <td>{c.Id}</td>
-                    <td>{c.Name}</td>
-                    <td style={{ color: "#004aad", fontWeight: "bold" }}>
-                      {c.LaborReduction ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+  <tbody>
+    {list.map((c) => (
+      <tr key={c.Id}>
+        <td>{c.Id}</td>
+        <td>{c.Name}</td>
+
+        <td style={{ color: "#004aad", fontWeight: "bold" }}>
+          {c.LaborReduction ?? "—"}
+        </td>
+
+        <td>
+          {c.builders?.length
+            ? c.builders.map(b => b.name).join(", ")
+            : "—"}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
           </div>
         );
       })}
