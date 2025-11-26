@@ -1,5 +1,11 @@
 // backend/server.js
 require("dotenv").config();
+console.log("ENV CHECK:", {
+  host: process.env.DB_HOST,
+  db: process.env.DB_NAME,
+  airtableBase: process.env.AIRTABLE_BASE
+});
+
 const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
@@ -288,11 +294,11 @@ app.get("/jobs/lien", async (req, res) => {
 });
 
 // GET subcontractors from Users table (non-Vanir emails)
+// =========================================
 app.get("/subcontractors-users", async (req, res) => {
   try {
-    console.log("🔵 Loading subcontractor users + Airtable…");
+    console.log("🔵 /subcontractors-users called…");
 
-    // Load USERS
     const sql = `
       SELECT 
         u."Id",
@@ -304,40 +310,46 @@ app.get("/subcontractors-users", async (req, res) => {
       FROM public."AbpUsers" u
       LEFT JOIN public."Stores" s ON s."Id" = u."StoreId"
       WHERE u."IsDeleted" = false
-      AND LOWER(u."EmailAddress") NOT LIKE '%vanir%'
-      AND LOWER(u."EmailAddress") NOT LIKE '%techverx%'
-      ORDER BY u."EmailAddress" ASC
+        AND LOWER(u."EmailAddress") NOT LIKE '%vanir%'
+        AND LOWER(u."EmailAddress") NOT LIKE '%techverx%'
+      ORDER BY u."EmailAddress" ASC;
     `;
 
-    const users = (await pool.query(sql)).rows;
+    const userResult = await pool.query(sql);
+    const users = userResult.rows;
 
-    console.log("📌 Users found:", users.length);
-
-    // Load Airtable
+    // Airtable records
     const airtableRecords = await airtable(process.env.AIRTABLE_TABLE)
       .select({ view: process.env.AIRTABLE_VIEW })
       .all();
 
-    console.log("📌 Airtable rows:", airtableRecords.length);
-
-    // Build lookup map by email (case-insensitive)
-    const airtableByEmail = {};
-    airtableRecords.forEach(rec => {
-      const email = rec.fields["Subcontractor Email"];
+    // Email → Airtable lookup
+    const recordMap = {};
+    airtableRecords.forEach((r) => {
+      const email = (r.get("Subcontractor Email") || "").toLowerCase();
       if (email) {
-        airtableByEmail[email.toLowerCase()] = rec.fields;
+        recordMap[email] = { ...r.fields, id: r.id };
       }
     });
 
-    // Merge Users + Airtable
-    const merged = users.map(u => {
-      const air = airtableByEmail[u.UserName.toLowerCase()] || {};
+    // Merge
+    const merged = users.map((u) => {
+      const email = (u.UserName || "").toLowerCase();
+      const air = recordMap[email] || {};
 
+      // Direct map of expiration fields (top-level)
       return {
         ...u,
+
         GeneralLiability: air["General Liability Expiration Date"] || null,
         WorkersComp: air["Worker's Comp Expiration Date"] || null,
-        AutoLiability: air["Auto Liability Expiration Date"] || null
+        AutoLiability: air["Auto Liability Expiration Date"] || null,
+
+        // Nested Airtable extras
+        Specialty: air["Specialty"] || [],
+        COI: air["COI"] || [],
+
+        AirtableId: air.id || null
       };
     });
 
@@ -348,6 +360,8 @@ app.get("/subcontractors-users", async (req, res) => {
     res.status(500).json({ error: "Server error loading subcontractors" });
   }
 });
+
+
 
 //
 // ---------------- SUBCONTRACTORS CRUD ----------------

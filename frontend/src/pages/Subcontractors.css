@@ -130,3 +130,12 @@
   color: #f0ad4e;
   font-weight: bold;
 }
+.tag {
+  background: #e0f0ff;
+  color: #004aad;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-right: 6px;
+  font-size: 12px;
+  display: inline-block;
+}

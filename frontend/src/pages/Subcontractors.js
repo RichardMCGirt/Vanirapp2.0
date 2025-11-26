@@ -38,6 +38,26 @@ function formatExpDate(dateValue) {
     className
   };
 }
+function renderSpecialty(list) {
+  if (!Array.isArray(list) || list.length === 0) return "—";
+
+  return list.map((item, i) => (
+    <span key={i} className="tag">
+      {item}
+    </span>
+  ));
+}
+function renderCOI(files) {
+  if (!Array.isArray(files) || files.length === 0) return "—";
+
+  return files.map((file, i) => (
+    <div key={i}>
+      <a href={file.url} target="_blank" rel="noopener noreferrer">
+        📄 {file.filename}
+      </a>
+    </div>
+  ));
+}
 
 async function load() {
   setLoading(true);
@@ -104,41 +124,69 @@ async function load() {
               <th>General Liability Exp.</th>
               <th>Workers Comp Exp.</th>
               <th>Auto Liability Exp.</th>
+              <th>Specialty</th>
+<th>COI</th>
+
             </tr>
           </thead>
 
-          <tbody>
-            {filtered.map((r) => (
-<tr key={r.Id} onClick={() => {
-  console.log("👉 Selected subcontractor:", r);
-  setActiveSub(r);
-}}>
-                <td>{r.Id}</td>
-                <td>{r.UserName}</td>
-                <td>{r.Name} {r.Surname}</td>
-                <td>{r.StoreName || "—"}</td>
-               {
-  (() => {
-    const { text, className } = formatExpDate(r.GeneralLiability);
-    return <td className={className}>{text}</td>;
-  })()
-}
-{
-  (() => {
-    const { text, className } = formatExpDate(r.WorkersComp);
-    return <td className={className}>{text}</td>;
-  })()
-}
-{
-  (() => {
-    const { text, className } = formatExpDate(r.AutoLiability);
-    return <td className={className}>{text}</td>;
-  })()
-}
+     <tbody>
+  {filtered.map((r) => (
+    <tr
+      key={r.Id}
+      onClick={() => {
+        console.log("👉 Selected subcontractor:", r);
+        setActiveSub(r);
+      }}
+    >
+      <td>{r.Id}</td>
+      <td>{r.UserName}</td>
+      <td>
+        {r.Name} {r.Surname}
+      </td>
+      <td>{r.StoreName || "—"}</td>
 
-              </tr>
-            ))}
-          </tbody>
+      {/* GENERAL LIABILITY */}
+      {(() => {
+        const { text, className } = formatExpDate(r.GeneralLiability);
+        return <td className={className}>{text}</td>;
+      })()}
+
+      {/* WORKERS COMP */}
+      {(() => {
+        const { text, className } = formatExpDate(r.WorkersComp);
+        return <td className={className}>{text}</td>;
+      })()}
+
+      {/* AUTO LIABILITY */}
+      {(() => {
+        const { text, className } = formatExpDate(r.AutoLiability);
+        return <td className={className}>{text}</td>;
+      })()}
+
+      {/* SPECIALTY */}
+      <td>
+        {r.Specialty?.length ? r.Specialty.join(", ") : "—"}
+      </td>
+
+      {/* COI FILES */}
+      <td>
+        {r.COI?.length ? (
+          r.COI.map((file, i) => (
+            <div key={i}>
+              <a href={file.url} target="_blank" rel="noreferrer">
+                COI {i + 1}
+              </a>
+            </div>
+          ))
+        ) : (
+          "—"
+        )}
+      </td>
+    </tr>
+  ))}
+</tbody>
+
         </table>
       )}
 
@@ -159,6 +207,9 @@ async function load() {
 <p><strong>General Liability Exp:</strong> {activeSub.GeneralLiability || "—"}</p>
 <p><strong>Workers Comp Exp:</strong> {activeSub.WorkersComp || "—"}</p>
 <p><strong>Auto Liability Exp:</strong> {activeSub.AutoLiability || "—"}</p>
+<p><strong>Specialty:</strong> {renderSpecialty(activeSub.airtable?.["Specialty"])}</p>
+
+<p><strong>COI:</strong> {renderCOI(activeSub.airtable?.["COI"])}</p>
 
 
         </div>
