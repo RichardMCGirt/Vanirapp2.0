@@ -18,6 +18,26 @@ console.log("Key:", process.env.REACT_APP_AIRTABLE_KEY?.substring(0, 5) + "...")
   useEffect(() => {
     load();
   }, []);
+function formatExpDate(dateValue) {
+  if (!dateValue) return { text: "—", className: "" };
+
+  const d = new Date(dateValue);
+  if (isNaN(d)) return { text: dateValue, className: "" };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor((d - today) / (1000 * 60 * 60 * 24));
+
+  let className = "";
+  if (diffDays < 0) className = "expired";         // RED
+  else if (diffDays <= 30) className = "expiring"; // ORANGE (optional)
+
+  return {
+    text: d.toLocaleDateString(),
+    className
+  };
+}
 
 async function load() {
   setLoading(true);
@@ -97,9 +117,25 @@ async function load() {
                 <td>{r.UserName}</td>
                 <td>{r.Name} {r.Surname}</td>
                 <td>{r.StoreName || "—"}</td>
-                <td>{r.GeneralLiability || "—"}</td>
-                <td>{r.WorkersComp || "—"}</td>
-                <td>{r.AutoLiability || "—"}</td>
+               {
+  (() => {
+    const { text, className } = formatExpDate(r.GeneralLiability);
+    return <td className={className}>{text}</td>;
+  })()
+}
+{
+  (() => {
+    const { text, className } = formatExpDate(r.WorkersComp);
+    return <td className={className}>{text}</td>;
+  })()
+}
+{
+  (() => {
+    const { text, className } = formatExpDate(r.AutoLiability);
+    return <td className={className}>{text}</td>;
+  })()
+}
+
               </tr>
             ))}
           </tbody>
