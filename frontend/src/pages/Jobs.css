@@ -122,3 +122,35 @@
     width: 100%;
   }
 }
+.unpaid-subs {
+  padding: 15px;
+  background: #ffe6e6;
+  border-left: 5px solid #cc0000;
+  margin-bottom: 20px;
+}
+
+.unpaid-item {
+  padding: 10px;
+  margin: 8px 0;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
+
+.unpaid-item p {
+  margin: 2px 0;
+}
+.lien-jobs {
+  background: #eef7ff;
+  padding: 15px;
+  border-left: 5px solid #0077cc;
+  margin-bottom: 20px;
+}
+
+.lien-row {
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  margin-bottom: 10px;
+}

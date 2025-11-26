@@ -6,10 +6,24 @@ import { Link } from "react-router-dom";
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
   const [filter, setFilter] = useState("");
+const [lienJobs, setLienJobs] = useState([]);
 
-  useEffect(() => {
-    loadJobs();
-  }, []);
+useEffect(() => {
+  loadJobs();
+  loadLienJobs();   // 👈 NEW
+}, []);
+async function loadLienJobs() {
+  const data = await apiGet("/jobs/lien");
+
+  if (!data || !Array.isArray(data)) {
+    setLienJobs([]);
+    return;
+  }
+
+  setLienJobs(data);
+  console.log("Lien Jobs →", data); // debug
+}
+
 
   async function loadJobs() {
   const data = await apiGet("/jobs");
@@ -26,6 +40,8 @@ const normalized = data.map((j) => ({
   creationtime: j.creationtime || j.CreationTime,
   store_name: j.store_name || j.StoreName || j.storename,
 
+  lien_number: j.lien_number ?? j.LienNumber ?? j.liennumber ?? null, // ✅ REQUIRED
+
   trade_name: j.trade_name || j.TradeName,
   labor_cost: j.labor_cost || j.LaborCost || null,
   ispaid: j.ispaid || j.IsPaid || false,
@@ -37,6 +53,7 @@ const normalized = data.map((j) => ({
     email: j.installer_email
   }
 }));
+
 
 
   // 2️⃣ GROUP BY job_id and combine trades
@@ -63,6 +80,8 @@ const normalized = data.map((j) => ({
   });
 
   setJobs(Object.values(grouped));
+console.log("DEBUG JOBS:", Object.values(grouped));
+
   }
 
  const filtered = jobs.filter((job) => {
@@ -83,6 +102,56 @@ const normalized = data.map((j) => ({
   return (
     <div className="jobs-page">
       <h1>Jobs Dashboard</h1>
+{/* 🔥 Unpaid Subs Summary */}
+<div className="unpaid-subs card">
+  <h2>Subcontractors to pay</h2>
+
+  {jobs
+    .flatMap(job =>
+      job.trades
+        .filter(t => t.ispaid === false || t.ispaid === "false")
+        .map(t => ({
+          job_id: job.job_id,
+          job_name: job.job_name,
+          installer: job.installer,
+          trade: t.trade_name
+        }))
+    )
+    .map((u, i) => (
+      <div key={i} className="unpaid-item">
+        <p><strong>{u.installer.first} {u.installer.last}</strong></p>
+        <p>🛠 {u.trade}</p>
+        <p>📌 Job: {u.job_name}</p>
+        <Link to={`/job/${u.job_id}`} className="btn small">
+          View Job →
+        </Link>
+      </div>
+    ))}
+
+  {/* If empty */}
+  {jobs.every(job => job.trades.every(t => t.ispaid)) && (
+    <p>✔ All subcontractors are paid</p>
+  )}
+</div>
+{/* 🔥 Jobs with Lien Numbers */}
+<div className="lien-jobs card">
+  <h2>📄 Jobs With Lien Numbers</h2>
+
+  {lienJobs.length === 0 && (
+    <p>No lien numbers found.</p>
+  )}
+
+  {lienJobs.map((job) => (
+    <div key={job.job_id} className="lien-row">
+      <p><strong>{job.job_name}</strong></p>
+      <p>🔢 Lien Number: {job.lien_number}</p>
+
+      <Link to={`/job/${job.job_id}`} className="btn small">
+        View Job →
+      </Link>
+    </div>
+  ))}
+</div>
 
       <div className="filters">
         <input
