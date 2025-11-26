@@ -22,15 +22,19 @@ export default function ConstructionManagers() {
       // Group managers → store → builder
       const grouped = {};
 
-      managers.forEach(m => {
-        const storeName = storeMap[m.StoreId] || "Unknown Store";
-        const builderName = builderMap[m.BuilderId] || "Unknown Builder";
+    managers.forEach(m => {
+  const storeName = storeMap[m.StoreId] || "Unknown Store";
+  let rawBuilder = builderMap[m.BuilderId] || "Unknown Builder";
 
-        if (!grouped[storeName]) grouped[storeName] = {};
-        if (!grouped[storeName][builderName]) grouped[storeName][builderName] = [];
+  // 🔥 Clean builder name — remove the store portion after ANY dash pattern
+  const builderName = rawBuilder.split(/\s*-\s*/)[0].trim();
 
-        grouped[storeName][builderName].push(m);
-      });
+  if (!grouped[storeName]) grouped[storeName] = {};
+  if (!grouped[storeName][builderName]) grouped[storeName][builderName] = [];
+
+  grouped[storeName][builderName].push(m);
+});
+
 
       setGroupedData(grouped);
     } catch (err) {
@@ -55,6 +59,16 @@ function formatPhone(num) {
   const line = digits.slice(6);
 
   return `(${area}) ${prefix}-${line}`;
+}
+function displayBuilderName(builderName, storeName) {
+  if (!builderName) return "";
+  
+  // If builder name already includes the store name, return builderName only
+  if (builderName.toLowerCase().includes(storeName.toLowerCase())) {
+    return builderName.replace(new RegExp(storeName, "i"), "").replace(/[-–—]\s*$/, "").trim();
+  }
+
+  return builderName;
 }
 
   // Search filter
@@ -88,7 +102,9 @@ function formatPhone(num) {
 
             return (
               <div key={builderName} className="builder-section">
-                <h3 className="builder-title">{builderName}</h3>
+<h3 className="builder-title">
+  {displayBuilderName(builderName, storeName)}
+</h3>
 
                 <table className="cm-table">
                   <thead>

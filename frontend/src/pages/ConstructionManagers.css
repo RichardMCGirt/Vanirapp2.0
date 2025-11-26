@@ -3,9 +3,13 @@
 }
 
 .store-title {
-  color: #004aad;
-  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 50; 
+  background: blue; /* Or your header color */
+  padding: 10px 0;
 }
+
 
 .builder-title {
   margin: 15px 0 8px;
