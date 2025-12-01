@@ -254,9 +254,8 @@ app.get('/job/:id/construction-manager', async (req, res) => {
               cm."Id"
        FROM public."ConstructionManagers" cm
        WHERE cm."BuilderId" = (
-           SELECT "BuilderId" FROM public."Jobs" WHERE "Id" = $1
+           SELECT "builder_id" FROM public."Jobs" WHERE "Id" = $1
        )
-       AND cm."IsDeleted" = false
        LIMIT 1`,
       [jobId]
     );
@@ -267,7 +266,6 @@ app.get('/job/:id/construction-manager', async (req, res) => {
     res.status(500).json({ error: "Failed to load construction manager" });
   }
 });
-
 
 app.get('/job/:id/prewalk-items', async (req, res) => {
   const jobId = req.params.id;

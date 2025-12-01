@@ -10,6 +10,7 @@ import Subcontractors from "./pages/Subcontractors";
 import Communities from "./pages/Communities";
 import ConstructionManagers from "./pages/ConstructionManagers";
 import Materials from "./pages/materials";
+import SubcontractorDetails from "./pages/SubcontractorDetails";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("token");
@@ -43,6 +44,7 @@ function App() {
             </RequireAuth>
           }
         />
+<Route path="/subcontractor/:id" element={<SubcontractorDetails />} />
 
         {/* ⚠ MUST COME BEFORE /job/:id */}
         <Route
