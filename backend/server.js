@@ -119,7 +119,264 @@ app.get("/dashboard/workloads", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+app.get("/job/:jobId/images", async (req, res) => {
+  const jobId = req.params.jobId;
 
+  try {
+    const sql = `
+      SELECT 
+        img."Id",
+        img."ImagePath",
+        item."Id" AS "PreWalkItemId",
+        list."Id" AS "PreWalkListId"
+      FROM "PreWalkImages" img
+      JOIN "PreWalkItems" item
+        ON img."PreWalkItemId" = item."Id"
+      JOIN "PreWalkLists" list
+        ON item."PreWalkListId" = list."Id"
+      WHERE list."JobId" = $1
+      ORDER BY img."Id" ASC;
+    `;
+
+    const result = await pool.query(sql, [jobId]);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ Error loading job images:", err);
+    res.status(500).json({ error: "Failed to load images" });
+  }
+});
+// ================================
+// GET MEASUREMENTS FOR A JOB
+// ================================
+app.get("/job/:jobId/measurements", async (req, res) => {
+  const jobId = Number(req.params.jobId);
+
+  try {
+   const sql = `
+  SELECT 
+    "Id" AS id,
+    "Height" AS height,
+    "Width" AS width,
+    "Category" AS category,
+    "JobId" AS jobid
+  FROM public."Measurements"
+  WHERE "JobId" = $1
+  ORDER BY "Id" ASC
+`;
+
+
+    const r = await pool.query(sql, [jobId]);
+    res.json(r.rows);
+
+  } catch (err) {
+    console.error("Measurements error:", err);
+    res.status(500).json({ error: "Failed to load measurements" });
+  }
+});
+app.post("/measurements/update", async (req, res) => {
+  const { jobId, measurements } = req.body;
+
+  try {
+    for (const m of measurements) {
+      await pool.query(
+        `
+        UPDATE public."Measurements"
+        SET "Width" = $1,
+            "Height" = $2,
+            "Category" = $3
+        WHERE "Id" = $4 AND "JobId" = $5
+        `,
+        [m.width, m.height, m.category, m.id, jobId]
+      );
+    }
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("Measurements update error:", err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+//
+// GET all materials with their mapped reasons
+//
+app.get("/materials-with-reasons", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        m."Id" AS material_id,
+        m."Name" AS material_name,
+        m."HasColor",
+        r."Id" AS reason_id,
+        r."Title" AS reason_name   -- FIXED HERE
+      FROM public."Materials" m
+      LEFT JOIN public."MaterialReasons" mr 
+        ON mr."MaterialId" = m."Id"
+      LEFT JOIN public."Reasons" r 
+        ON r."Id" = mr."ReasonId"
+      ORDER BY m."Id", r."Id"
+    `);
+
+    const map = {};
+
+    result.rows.forEach(row => {
+      if (!map[row.material_id]) {
+        map[row.material_id] = {
+          id: row.material_id,
+          name: row.material_name,
+          hasColor: row.hascolor,
+          reasons: []
+        };
+      }
+
+      if (row.reason_id) {
+        map[row.material_id].reasons.push({
+          id: row.reason_id,
+          name: row.reason_name
+        });
+      }
+    });
+
+    res.json(Object.values(map));
+  } catch (err) {
+    console.error("Error loading materials:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+app.get('/job/:id/construction-manager', async (req, res) => {
+  const jobId = req.params.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT cm."FullName",
+              cm."PhoneNumber",
+              cm."Id"
+       FROM public."ConstructionManagers" cm
+       WHERE cm."BuilderId" = (
+           SELECT "BuilderId" FROM public."Jobs" WHERE "Id" = $1
+       )
+       AND cm."IsDeleted" = false
+       LIMIT 1`,
+      [jobId]
+    );
+
+    res.json(result.rows[0] || null);
+  } catch (err) {
+    console.error("Error loading construction manager:", err);
+    res.status(500).json({ error: "Failed to load construction manager" });
+  }
+});
+
+
+app.get('/job/:id/prewalk-items', async (req, res) => {
+  const jobId = req.params.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT i."Id",
+              i."PreWalkListId",
+              i."ReasonId",
+              i."AskCMToFix",
+              i."Note",
+              r."Title" AS reason_name
+       FROM public."PreWalkItems" i
+       LEFT JOIN public."Reasons" r 
+         ON r."Id" = i."ReasonId"
+       WHERE i."PreWalkListId" IN (
+          SELECT "Id" FROM public."PreWalkLists" WHERE "JobId" = $1
+       )
+       ORDER BY i."Id" ASC`,
+      [jobId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error loading PreWalkItems:", err);
+    res.status(500).json({ error: "Failed to load PreWalkItems" });
+  }
+});
+
+
+
+app.get('/job/:id/prewalk-pdfs', async (req, res) => {
+  const jobId = req.params.id;
+
+  try {
+    const result = await pool.query(
+      `SELECT "Id", "PreWalkItemsPdfUrl"
+       FROM public."PreWalkLists"
+       WHERE "JobId" = $1
+       ORDER BY "Id" ASC`,
+      [jobId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error loading PreWalk PDFs:", err);
+    res.status(500).json({ error: "Failed to load PDF list" });
+  }
+});
+
+//
+// SAVE SELECTED MATERIAL / REASON
+//
+app.post("/materials/save-selection", async (req, res) => {
+  try {
+    const { materialId, reasonId, color } = req.body;
+
+    await pool.query(
+      `
+      INSERT INTO public."MaterialSelections"
+      ("MaterialId", "ReasonId", "Color")
+      VALUES ($1, $2, $3)
+      `,
+      [materialId, reasonId, color ?? null]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error saving selection:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+app.get("/job-images/:jobId", async (req, res) => {
+  const jobId = Number(req.params.jobId);
+
+  if (!jobId) {
+    return res.status(400).json({ error: "Invalid Job ID" });
+  }
+
+  try {
+    const sql = `
+      SELECT 
+        img."Id",
+        img."ImagePath",
+        item."Id" AS "PreWalkItemId",
+        list."Id" AS "PreWalkListId"
+      FROM "PreWalkImages" img
+      JOIN "PreWalkItems" item
+        ON img."PreWalkItemId" = item."Id"
+      JOIN "PreWalkLists" list
+        ON item."PreWalkListId" = list."Id"
+      WHERE list."JobId" = $1
+      ORDER BY img."Id" ASC;
+    `;
+
+    const result = await pool.query(sql, [jobId]);
+
+    res.json(result.rows);
+    
+  } catch (err) {
+    console.error("❌ Error loading job images:", err);
+    res.status(500).json({
+      error: "Server error fetching job images",
+      details: err.message
+    });
+  }
+});
 
 
 // ================================

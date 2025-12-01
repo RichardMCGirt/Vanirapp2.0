@@ -9,6 +9,7 @@ import TechInstallerDashboard from "./pages/TechInstallerDashboard";
 import Subcontractors from "./pages/Subcontractors";
 import Communities from "./pages/Communities";
 import ConstructionManagers from "./pages/ConstructionManagers";
+import Materials from "./pages/materials";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("token");
@@ -65,6 +66,14 @@ function App() {
   element={
     <RequireAuth>
       <Communities />
+    </RequireAuth>
+  }
+/>
+<Route
+  path="/materials"
+  element={
+    <RequireAuth>
+      <Materials />
     </RequireAuth>
   }
 />

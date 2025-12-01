@@ -1,22 +1,50 @@
 // src/pages/JobDetails.js
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { apiGet } from "../api/api";
+import { apiGet, apiPost } from "../api/api";
 import "./JobDetails.css";
+import MaterialSelector from "../components/MaterialSelector";
 
 export default function JobDetails() {
   const { id } = useParams();
   const [job, setJob] = useState(null);
+const [measurements, setMeasurements] = useState([]);
+const [prewalkPdfs, setPrewalkPdfs] = useState([]);
+const [prewalkItems, setPrewalkItems] = useState([]);
+const [constructionManager, setConstructionManager] = useState(null);
 
 useEffect(() => {
   async function fetchJob() {
     const data = await apiGet(`/job/${id}`);
-    console.log("JOB DETAILS:", data);
     setJob(data);
   }
 
+  async function fetchMeasurements() {
+    const m = await apiGet(`/job/${id}/measurements`);
+    setMeasurements(m || []);
+  }
+
+  async function fetchPrewalkPdfs() {
+    const pdfs = await apiGet(`/job/${id}/prewalk-pdfs`);
+    setPrewalkPdfs(pdfs || []);
+  }
+
+  async function fetchPrewalkItems() {
+    const items = await apiGet(`/job/${id}/prewalk-items`);
+    setPrewalkItems(items || []);
+  }
+  async function fetchConstructionManager() {
+  const data = await apiGet(`/job/${id}/construction-manager`);
+  setConstructionManager(data);
+}
+
+fetchConstructionManager();
   fetchJob();
+  fetchMeasurements();
+  fetchPrewalkPdfs();
+  fetchPrewalkItems();
 }, [id]);
+
 
 
   if (!job) return <div className="loading">Loading...</div>;
@@ -38,6 +66,34 @@ useEffect(() => {
       year: "numeric"
     }).replace(/(\d+)/, `$1${suffix}`);
   }
+function getCategoryLabel(cat) {
+  switch (cat) {
+    case 0: return "Crawl door";
+    case 1: return "Knee wall";
+    default: return "Unknown";
+  }
+}
+
+async function submitMeasurements() {
+  const body = {
+    jobId: id,
+    measurements: measurements.map(m => ({
+      id: m.id,
+      width: m.width,
+      height: m.height,
+      category: m.category
+    }))
+  };
+
+  const res = await apiPost("/measurements/update", body);
+
+  if (res.success) {
+    alert("Measurements updated!");
+  } else {
+    alert("Failed to update measurements.");
+  }
+}
+
 
   function getStatusText(code) {
     switch (code) {
@@ -114,6 +170,20 @@ useEffect(() => {
             <p>— No Installer Assigned —</p>
           )}
         </div>
+<div className="card">
+  <h3>Construction Manager</h3>
+
+  {!constructionManager ? (
+    <p>— No construction manager assigned —</p>
+  ) : (
+    <>
+      <p><strong>Name:</strong> {constructionManager.FullName}</p>
+      <p><strong>Phone:</strong> <a href={`tel:${constructionManager.PhoneNumber}`}>
+         {constructionManager.PhoneNumber}
+      </a></p>
+    </>
+  )}
+</div>
 
         {/* TRADES */}
         <div className="card">
@@ -130,6 +200,134 @@ useEffect(() => {
             ))
           )}
         </div>
+ <div className="card full-width">
+  <h3>Measurements</h3>
+
+  {measurements.length === 0 ? (
+    <p>— No measurements —</p>
+  ) : (
+    measurements.map((m, idx) => (
+      <div key={m.id} className="measurement-block">
+
+        <h4>{getCategoryLabel(m.category)}</h4>
+
+        {/* Crawl Door (width + height) */}
+        {m.category === 0 && (
+          <>
+            <div className="measurement-row">
+              <div className="measurement-field">
+                <label>Width</label>
+                <div className="input-unit">
+                  <input
+                    type="number"
+                    value={m.width}
+                    onChange={(e) => {
+                      const copy = [...measurements];
+                      copy[idx].width = Number(e.target.value);
+                      setMeasurements(copy);
+                    }}
+                  />
+                  <span>Inch</span>
+                </div>
+              </div>
+
+              <div className="measurement-field">
+                <label>Height</label>
+                <div className="input-unit">
+                  <input
+                    type="number"
+                    value={m.height}
+                    onChange={(e) => {
+                      const copy = [...measurements];
+                      copy[idx].height = Number(e.target.value);
+                      setMeasurements(copy);
+                    }}
+                  />
+                  <span>Inch</span>
+                </div>
+              </div>
+              <div className="card full-width">
+  <h3>Pre-Walk PDFs</h3>
+
+  {prewalkPdfs.length === 0 ? (
+    <p>— No documents —</p>
+  ) : (
+    prewalkPdfs.map((pdf) => (
+      <div key={pdf.Id} className="pdf-row">
+        <a 
+          href={pdf.PreWalkItemsPdfUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="btn small"
+        >
+          📄 View PDF {pdf.Id}
+        </a>
+      </div>
+    ))
+  )}
+  <div className="card full-width">
+  <h3>Pre-Walk Items</h3>
+
+  {prewalkItems.length === 0 ? (
+    <p>— No Pre-Walk items —</p>
+  ) : (
+    <table className="measurements-table">
+      <thead>
+        <tr>
+          <th>Reason</th>
+          <th>Note</th>
+          <th>Ask CM To Fix?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {prewalkItems.map((item) => (
+          <tr key={item.Id}>
+            <td>{item.reason_name || "—"}</td>
+            <td>{item.Note || "—"}</td>
+            <td>{item.AskCMToFix ? "Yes" : "No"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</div>
+
+</div>
+
+            </div>
+          </>
+        )}
+
+        {/* Knee wall (one dimension) */}
+        {m.category === 1 && (
+          <div className="measurement-field">
+            <label>Dimension</label>
+            <div className="input-unit">
+              <input
+                type="number"
+                value={m.height}
+                onChange={(e) => {
+                  const copy = [...measurements];
+                  copy[idx].height = Number(e.target.value);
+                  setMeasurements(copy);
+                }}
+              />
+              <span>SQ</span>
+            </div>
+          </div>
+        )}
+
+        <hr />
+      </div>
+    ))
+  )}
+
+  <button className="btn" onClick={submitMeasurements}>
+    Save Measurements
+  </button>
+</div>
+
+
       </div>
 
       {/* PLANS */}

@@ -10,8 +10,10 @@ const [lienJobs, setLienJobs] = useState([]);
 
 useEffect(() => {
   loadJobs();
-  loadLienJobs();   // 👈 NEW
+  loadLienJobs();
 }, []);
+
+
 async function loadLienJobs() {
   const data = await apiGet("/jobs/lien");
 
@@ -23,7 +25,6 @@ async function loadLienJobs() {
   setLienJobs(data);
   console.log("Lien Jobs →", data); // debug
 }
-
 
   async function loadJobs() {
   const data = await apiGet("/jobs");
@@ -127,7 +128,6 @@ console.log("DEBUG JOBS:", Object.values(grouped));
         </Link>
       </div>
     ))}
-<Link to="/constructionmanagers">Construction Managers</Link>
 
   {/* If empty */}
   {jobs.every(job => job.trades.every(t => t.ispaid)) && (
@@ -171,9 +171,6 @@ console.log("DEBUG JOBS:", Object.values(grouped));
 
           return (
             <Link to={`/job/${job.job_id}`} key={job.job_id} className="card clickable">
-<Link to="/subcontractors" className="btn small">
-  Manage Subcontractors →
-</Link>
 
               <p className="job-title">{job.job_name || "Unnamed Job"}</p>
 
@@ -199,6 +196,7 @@ console.log("DEBUG JOBS:", Object.values(grouped));
               </p>
 
             </Link>
+            
           );
         })}
       </div>
