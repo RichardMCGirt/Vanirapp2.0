@@ -20,6 +20,7 @@ export default function TechInstallerDashboard() {
   const [activeTab, setActiveTab] = useState("techs");
 const [punchlistData, setPunchlistData] = useState({});
 const [creatorData, setCreatorData] = useState({});
+const [deductionData, setDeductionData] = useState({});
 
   useEffect(() => {
     loadData();
@@ -29,6 +30,9 @@ const loadData = async () => {
   const workloads = await apiGet("/dashboard/workloads");
   const punchlists = await apiGet("/dashboard/punchlists");
 const creators = await apiGet("/dashboard/creators");
+const deductions = await apiGet("/dashboard/deductions");
+setDeductionData(deductions);
+
 setCreatorData(creators);
 
   console.log("PUNCHLIST RAW:", punchlists);
@@ -158,6 +162,20 @@ console.log("MATCHED:", punchlistData[activeStore]);
 >
   Backcharges created
 </button>
+<button
+  onClick={() => setActiveTab("deductions")}
+  style={{
+    padding: "8px 18px",
+    background: activeTab === "deductions" ? "#f4a261" : "#ccc",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    color: "white",
+    marginLeft: 10
+  }}
+>
+ Total backcharged $ amount
+</button>
 
         </div>
 
@@ -209,6 +227,7 @@ console.log("MATCHED:", punchlistData[activeStore]);
     />
   </>
 )}
+
 {activeTab === "creators" && creatorData[activeStore] && (
   <>
     <h2>Back charges Created per User</h2>
@@ -227,9 +246,33 @@ console.log("MATCHED:", punchlistData[activeStore]);
           }
         ]
       }}
+      
     />
   </>
 )}
+{activeTab === "deductions" && deductionData[activeStore] && (
+  <>
+    <h2>Total Backcharged by Subcontrator</h2>
+    <Bar
+      data={{
+        labels: deductionData[activeStore]
+          .sort((a, b) => b.total_deductions - a.total_deductions)
+          .map(x => x.contractor_name || `User ${x.contractor_id}`),
+
+        datasets: [
+          {
+            label: "Total Deducted Price ($)",
+            data: deductionData[activeStore]
+              .sort((a, b) => b.total_deductions - a.total_deductions)
+              .map(x => x.total_deductions),
+            backgroundColor: "rgba(244, 162, 97, 0.6)"
+          }
+        ]
+      }}
+    />
+  </>
+)}
+
 
 
 

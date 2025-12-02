@@ -920,6 +920,42 @@ app.get("/dashboard/creators", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+app.get("/dashboard/deductions", async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        s."Name" AS store_name,
+        bc."ContractorId" AS contractor_id,
+        (u."Name" || ' ' || u."Surname") AS contractor_name,
+        SUM(bc."DeductedPrice") AS total_deductions
+      FROM public."BackCharges" bc
+      JOIN public."Jobs" j 
+        ON j."Id" = bc."JobId"
+      JOIN public."Stores" s
+        ON s."Id" = j."StoreId"
+      LEFT JOIN public."AbpUsers" u
+        ON u."Id" = bc."ContractorId"
+      WHERE bc."DeductedPrice" IS NOT NULL
+      GROUP BY store_name, contractor_id, contractor_name
+      ORDER BY store_name, total_deductions DESC;
+    `;
+
+    const result = await pool.query(sql);
+
+    // Group by store
+    const grouped = {};
+    result.rows.forEach(row => {
+      if (!grouped[row.store_name]) grouped[row.store_name] = [];
+      grouped[row.store_name].push(row);
+    });
+
+    res.json(grouped);
+
+  } catch (err) {
+    console.error("Deductions dashboard error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // ================================
 // PUNCHLIST COUNT PER USER
