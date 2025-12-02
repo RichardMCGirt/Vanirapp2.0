@@ -18,22 +18,26 @@ export default function TechInstallerDashboard() {
   const [stores, setStores] = useState({});
   const [activeStore, setActiveStore] = useState("");
   const [activeTab, setActiveTab] = useState("techs");
-const [punchlistData, setPunchlistData] = useState([]);
+const [punchlistData, setPunchlistData] = useState({});
 
   useEffect(() => {
     loadData();
   }, []);
 
- const loadData = async () => {
-  const data = await apiGet("/dashboard/workloads");
+const loadData = async () => {
+  const workloads = await apiGet("/dashboard/workloads");
   const punchlists = await apiGet("/dashboard/punchlists");
 
-  setStores(data);
+  console.log("PUNCHLIST RAW:", punchlists);
+
+  setStores(workloads);
   setPunchlistData(punchlists);
 
-  const firstStore = Object.keys(data)[0];
+  const firstStore = Object.keys(workloads)[0];
   if (firstStore) setActiveStore(firstStore);
 };
+
+
 
 
   if (!activeStore) {
@@ -41,6 +45,10 @@ const [punchlistData, setPunchlistData] = useState([]);
   }
 
   const current = stores[activeStore];
+  console.log("PUNCHLIST DATA:", punchlistData);
+console.log("STORE:", activeStore);
+console.log("MATCHED:", punchlistData[activeStore]);
+
   console.log("ACTIVE STORE:", activeStore, current);
 
   const buildChart = (list, label, color) => {
@@ -166,16 +174,20 @@ const [punchlistData, setPunchlistData] = useState([]);
               />
             </>
           )}
-          {activeTab === "punchlists" && (
+{activeTab === "punchlists" && punchlistData[activeStore] && (
   <>
     <h2>Punchlist Items Per Field Tech</h2>
     <Bar
       data={{
-        labels: punchlistData.map((x) => x.full_name),
+        labels: punchlistData[activeStore]
+          .sort((a, b) => a.punchlist_count - b.punchlist_count)
+          .map(x => x.full_name),
         datasets: [
           {
             label: "Punchlist Count",
-            data: punchlistData.map((x) => x.punchlist_count),
+            data: punchlistData[activeStore]
+              .sort((a, b) => a.punchlist_count - b.punchlist_count)
+              .map(x => x.punchlist_count),
             backgroundColor: "rgba(106, 76, 147, 0.6)"
           }
         ]
@@ -183,6 +195,8 @@ const [punchlistData, setPunchlistData] = useState([]);
     />
   </>
 )}
+
+
 
         </div>
       </div>

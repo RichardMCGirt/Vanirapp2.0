@@ -891,29 +891,45 @@ app.get("/jobs", async (req, res) => {
 // PUNCHLIST COUNT PER USER
 // ================================
 app.get("/dashboard/punchlists", async (req, res) => {
+  console.log("Punchlist API hit");
+
   try {
     const sql = `
       SELECT 
+        s."Id" AS store_id,
+        s."Name" AS store_name,
         ft."Id" AS user_id,
         (ft."Name" || ' ' || ft."Surname") AS full_name,
         COUNT(pl."Id") AS punchlist_count
       FROM public."PunchLists" pl
-      LEFT JOIN public."Jobs" j
+      JOIN public."Jobs" j
         ON j."Id" = pl."JobId"
-      LEFT JOIN public."AbpUsers" ft
+      JOIN public."Stores" s
+        ON s."Id" = j."StoreId"
+      JOIN public."AbpUsers" ft
         ON ft."Id" = j."FieldTechId"
-      WHERE ft."Id" IS NOT NULL
-      GROUP BY ft."Id", full_name
-      ORDER BY full_name ASC;
+      GROUP BY s."Id", s."Name", ft."Id", full_name
+      ORDER BY s."Name", punchlist_count ASC;
     `;
 
     const result = await pool.query(sql);
-    res.json(result.rows);
+
+    // Group by store exactly like workloads
+    const grouped = {};
+    result.rows.forEach(row => {
+      if (!grouped[row.store_name]) grouped[row.store_name] = [];
+      grouped[row.store_name].push(row);
+    });
+
+    res.json(grouped);
+
   } catch (err) {
     console.error("Punchlist dashboard error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
 
 app.get("/stores", async (req, res) => {
   try {
