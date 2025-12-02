@@ -218,6 +218,8 @@ console.log("DEBUG JOBS:", Object.values(grouped));
   {mainTrade?.payment_status === "paid" && "✔ Paid"}
   {mainTrade?.payment_status === "partial" && "🟡 Partial Paid"}
   {mainTrade?.payment_status === "unpaid" && "⛔ Not Paid"}
+  {mainTrade?.payment_status === "punchlist_pending" && "🔴 Punchlist Not Completed"}
+
 </p>
 
               </p>

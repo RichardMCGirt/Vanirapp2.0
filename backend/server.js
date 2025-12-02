@@ -781,8 +781,9 @@ app.post("/subcontractors/restore/:id", async (req, res) => {
 });
 
 // ================================
-// GET LAST 20 JOBS
+// GET LAST 200 JOBS
 // ================================
+
 app.get("/jobs", async (req, res) => {
   const sql = `
     SELECT
@@ -804,18 +805,26 @@ app.get("/jobs", async (req, res) => {
       FT."Name" AS fieldtech_first,
       FT."Surname" AS fieldtech_last,
 
-      -- Trade
+      -- Trades
       JT."LaborCost" AS labor_cost,
       T."Name" AS trade_name,
-      
-      -- Installer pulled from MergedTradeRecords (CORRECT!)
+
+      -- Installer
       MTR."ContractorId" AS installer_user_id,
       U."Name" AS installer_first,
       U."Surname" AS installer_last,
       U."EmailAddress" AS installer_email,
 
-      -- Payment Status
+      -- Punchlist status
+      pl.has_released AS punchlist_released,
+
+      -- Payment Catalog
+      pay.total_payments,
+      pay.paid_count,
+
+      -- FINAL PAYMENT STATUS
       CASE
+        WHEN pl.has_released = false THEN 'punchlist_pending'
         WHEN pay.paid_count = 0 THEN 'unpaid'
         WHEN pay.paid_count < pay.total_payments THEN 'partial'
         ELSE 'paid'
@@ -836,14 +845,17 @@ app.get("/jobs", async (req, res) => {
     LEFT JOIN public."JobTrades" JT ON JT."JobId" = J."Id"
     LEFT JOIN public."Trades" T ON T."Id" = JT."TradeId"
 
-    -- Correct installer source
-    LEFT JOIN public."MergedTradeRecords" MTR 
-      ON MTR."JobId" = J."Id"
+    LEFT JOIN public."MergedTradeRecords" MTR ON MTR."JobId" = J."Id"
+    LEFT JOIN public."AbpUsers" U ON U."Id" = MTR."ContractorId"
 
-    LEFT JOIN public."AbpUsers" U 
-      ON U."Id" = MTR."ContractorId"
+    LEFT JOIN (
+      SELECT 
+        "JobId",
+        BOOL_AND("IsReleased") AS has_released
+      FROM public."PunchLists"
+      GROUP BY "JobId"
+    ) pl ON pl."JobId" = J."Id"
 
-    -- Payment Catalog aggregation
     LEFT JOIN (
       SELECT 
         "JobId",
@@ -852,16 +864,18 @@ app.get("/jobs", async (req, res) => {
         SUM(CASE WHEN "IsPaid" = true THEN 1 ELSE 0 END) AS paid_count
       FROM public."PaymentCatalogs"
       GROUP BY "JobId", "UserId"
-    ) pay 
-      ON pay."JobId" = J."Id"
-      AND pay."UserId" = MTR."ContractorId"
+    ) pay ON pay."JobId" = J."Id"
+         AND pay."UserId" = MTR."ContractorId"
 
-    -- Creator
-    LEFT JOIN public."AbpUsers" CU 
-      ON CU."Id" = J."CreatorUserId"
+    LEFT JOIN public."AbpUsers" CU ON CU."Id" = J."CreatorUserId"
+
+    -- ✅ WHERE GOES HERE (AFTER ALL JOINS)
+    WHERE LOWER(J."Name") NOT LIKE '%test%'
+      AND J."Name" !~ '^[0-9]+$'
+      AND J."Status" NOT IN (3, 4)
 
     ORDER BY J."CreationTime" DESC
-    LIMIT 500000;
+    LIMIT 200;
   `;
 
   try {
@@ -873,8 +887,33 @@ app.get("/jobs", async (req, res) => {
   }
 });
 
+// ================================
+// PUNCHLIST COUNT PER USER
+// ================================
+app.get("/dashboard/punchlists", async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        ft."Id" AS user_id,
+        (ft."Name" || ' ' || ft."Surname") AS full_name,
+        COUNT(pl."Id") AS punchlist_count
+      FROM public."PunchLists" pl
+      LEFT JOIN public."Jobs" j
+        ON j."Id" = pl."JobId"
+      LEFT JOIN public."AbpUsers" ft
+        ON ft."Id" = j."FieldTechId"
+      WHERE ft."Id" IS NOT NULL
+      GROUP BY ft."Id", full_name
+      ORDER BY full_name ASC;
+    `;
 
-
+    const result = await pool.query(sql);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Punchlist dashboard error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 app.get("/stores", async (req, res) => {
   try {

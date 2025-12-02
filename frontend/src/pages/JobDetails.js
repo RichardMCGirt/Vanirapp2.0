@@ -103,10 +103,12 @@ async function submitMeasurements() {
 
   function getStatusText(code) {
     switch (code) {
-      case 0: return "Ordered";
-      case 1: return "In Progress";
-      case 2: return "Completed";
-      case 3: return "Approved";
+      case 0: return "Draft";
+      case 1: return "Ordered";
+      case 2: return "Active";
+      case 3: return "Completed";
+      case 4: return "Finished";
+
       default: return "Unknown";
     }
   }

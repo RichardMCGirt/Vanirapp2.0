@@ -18,18 +18,23 @@ export default function TechInstallerDashboard() {
   const [stores, setStores] = useState({});
   const [activeStore, setActiveStore] = useState("");
   const [activeTab, setActiveTab] = useState("techs");
+const [punchlistData, setPunchlistData] = useState([]);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = async () => {
-    const data = await apiGet("/dashboard/workloads");
-    setStores(data);
+ const loadData = async () => {
+  const data = await apiGet("/dashboard/workloads");
+  const punchlists = await apiGet("/dashboard/punchlists");
 
-    const firstStore = Object.keys(data)[0];
-    if (firstStore) setActiveStore(firstStore);
-  };
+  setStores(data);
+  setPunchlistData(punchlists);
+
+  const firstStore = Object.keys(data)[0];
+  if (firstStore) setActiveStore(firstStore);
+};
+
 
   if (!activeStore) {
     return <div style={{ padding: 20 }}>Loading dashboard...</div>;
@@ -117,6 +122,21 @@ export default function TechInstallerDashboard() {
           >
             Installers
           </button>
+          <button
+  onClick={() => setActiveTab("punchlists")}
+  style={{
+    padding: "8px 18px",
+    background: activeTab === "punchlists" ? "#6a4c93" : "#ccc",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    color: "white",
+    marginLeft: 10
+  }}
+>
+  Punchlist Count
+</button>
+
         </div>
 
         {/* CHART */}
@@ -146,6 +166,24 @@ export default function TechInstallerDashboard() {
               />
             </>
           )}
+          {activeTab === "punchlists" && (
+  <>
+    <h2>Punchlist Items Per Field Tech</h2>
+    <Bar
+      data={{
+        labels: punchlistData.map((x) => x.full_name),
+        datasets: [
+          {
+            label: "Punchlist Count",
+            data: punchlistData.map((x) => x.punchlist_count),
+            backgroundColor: "rgba(106, 76, 147, 0.6)"
+          }
+        ]
+      }}
+    />
+  </>
+)}
+
         </div>
       </div>
     </>
