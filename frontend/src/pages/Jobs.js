@@ -42,11 +42,9 @@ const normalized = data.map((j) => ({
   creationtime: j.creationtime || j.CreationTime,
   store_name: j.store_name || j.StoreName,
 
-  lien_number: j.lien_number ?? null,
-
   trade_name: j.trade_name,
   labor_cost: j.labor_cost,
-  ispaid: j.ispaid,
+  payment_status: j.payment_status,  // 🔥 FIXED
 
   installer: {
     user_id: j.installer_user_id,
@@ -54,12 +52,13 @@ const normalized = data.map((j) => ({
     last: j.installer_last,
   },
 
-  creator: {                               // 🔥 NEW OBJECT
+  creator: {
     id: j.creator_user_id,
     first: j.creator_first,
-    last: j.creator_last
+    last: j.creator_last,
   }
 }));
+
 
 
 
@@ -80,11 +79,13 @@ const normalized = data.map((j) => ({
 }
 
 
-    grouped[j.job_id].trades.push({
-      trade_name: j.trade_name,
-      labor_cost: j.labor_cost,
-      ispaid: j.ispaid
-    });
+grouped[j.job_id].trades.push({
+  trade_name: j.trade_name,
+  labor_cost: j.labor_cost,
+  payment_status: j.payment_status
+});
+
+
   });
 
   setJobs(Object.values(grouped));
@@ -213,7 +214,12 @@ console.log("DEBUG JOBS:", Object.values(grouped));
               </div>
 
               <p className="status">
-                💰 {mainTrade?.ispaid ? "✔ Paid" : "⛔ Not Paid"}
+<p className={`status ${mainTrade?.payment_status}`}>
+  {mainTrade?.payment_status === "paid" && "✔ Paid"}
+  {mainTrade?.payment_status === "partial" && "🟡 Partial Paid"}
+  {mainTrade?.payment_status === "unpaid" && "⛔ Not Paid"}
+</p>
+
               </p>
 
               <p className="date">

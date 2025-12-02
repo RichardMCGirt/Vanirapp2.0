@@ -168,3 +168,18 @@
   border-radius: 6px;
   border: 1px solid #ddd;
 }
+.status {
+  font-weight: bold;
+}
+
+.status.paid {
+  color: green;
+}
+
+.status.partial {
+  color: goldenrod;
+}
+
+.status.unpaid {
+  color: red;
+}

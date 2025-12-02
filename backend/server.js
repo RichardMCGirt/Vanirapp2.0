@@ -785,58 +785,84 @@ app.post("/subcontractors/restore/:id", async (req, res) => {
 // ================================
 app.get("/jobs", async (req, res) => {
   const sql = `
-SELECT
-  J."Id" AS job_id,
-  J."Name" AS job_name,
-  J."LocationAddress" AS address,
-  J."StartDate" AS startdate,
-  J."CreationTime" AS creationtime,
-  J."Status" AS status,
-  J."PlansAndOptions" AS plansandoptions,
-  J."FieldTechId" AS fieldtech_id,
+    SELECT
+      J."Id" AS job_id,
+      J."Name" AS job_name,
+      J."LocationAddress" AS address,
+      J."StartDate" AS startdate,
+      J."CreationTime" AS creationtime,
+      J."Status" AS status,
+      J."PlansAndOptions" AS plansandoptions,
+      J."FieldTechId" AS fieldtech_id,
 
-  -- Store / Builder / Community
-  S."Name" AS store_name,
-  C."Name" AS community_name,
-  B."Name" AS builder_name,
+      -- Store / Builder / Community
+      S."Name" AS store_name,
+      C."Name" AS community_name,
+      B."Name" AS builder_name,
 
-  -- Field Tech
-  FT."Name" AS fieldtech_first,
-  FT."Surname" AS fieldtech_last,
+      -- Field Tech
+      FT."Name" AS fieldtech_first,
+      FT."Surname" AS fieldtech_last,
 
-  -- Trades / Installer
-  JT."LaborCost" AS labor_cost,
-  T."Name" AS trade_name,
-  JC."UserId" AS installer_user_id,
-  U."Name" AS installer_first,
-  U."Surname" AS installer_last,
-  U."EmailAddress" AS installer_email,
+      -- Trade
+      JT."LaborCost" AS labor_cost,
+      T."Name" AS trade_name,
+      
+      -- Installer pulled from MergedTradeRecords (CORRECT!)
+      MTR."ContractorId" AS installer_user_id,
+      U."Name" AS installer_first,
+      U."Surname" AS installer_last,
+      U."EmailAddress" AS installer_email,
 
-  -- 🔥 Creator Information
-  CU."Name" AS creator_first,
-  CU."Surname" AS creator_last,
-  CU."EmailAddress" AS creator_email
+      -- Payment Status
+      CASE
+        WHEN pay.paid_count = 0 THEN 'unpaid'
+        WHEN pay.paid_count < pay.total_payments THEN 'partial'
+        ELSE 'paid'
+      END AS payment_status,
 
-FROM public."Jobs" J
-LEFT JOIN public."Stores" S ON S."Id" = J."StoreId"
-LEFT JOIN public."Communities" C ON C."Id" = J."CommunityId"
-LEFT JOIN public."Builders" B ON B."Id" = J."BuilderId"
-LEFT JOIN public."AbpUsers" FT ON FT."Id" = J."FieldTechId"
+      -- Creator
+      CU."Name" AS creator_first,
+      CU."Surname" AS creator_last,
+      CU."EmailAddress" AS creator_email
 
-LEFT JOIN public."JobTrades" JT ON JT."JobId" = J."Id"
-LEFT JOIN public."Trades" T ON T."Id" = JT."TradeId"
+    FROM public."Jobs" J
 
-LEFT JOIN public."JobContractors" JC ON JC."JobId" = J."Id"
-LEFT JOIN public."AbpUsers" U ON U."Id" = JC."UserId"
+    LEFT JOIN public."Stores" S ON S."Id" = J."StoreId"
+    LEFT JOIN public."Communities" C ON C."Id" = J."CommunityId"
+    LEFT JOIN public."Builders" B ON B."Id" = J."BuilderId"
+    LEFT JOIN public."AbpUsers" FT ON FT."Id" = J."FieldTechId"
 
--- 🔥 Add this JOIN
-LEFT JOIN public."AbpUsers" CU ON CU."Id" = J."CreatorUserId"
+    LEFT JOIN public."JobTrades" JT ON JT."JobId" = J."Id"
+    LEFT JOIN public."Trades" T ON T."Id" = JT."TradeId"
 
-ORDER BY J."CreationTime" DESC
-LIMIT 50;
+    -- Correct installer source
+    LEFT JOIN public."MergedTradeRecords" MTR 
+      ON MTR."JobId" = J."Id"
 
+    LEFT JOIN public."AbpUsers" U 
+      ON U."Id" = MTR."ContractorId"
 
-`;
+    -- Payment Catalog aggregation
+    LEFT JOIN (
+      SELECT 
+        "JobId",
+        "UserId",
+        COUNT(*) AS total_payments,
+        SUM(CASE WHEN "IsPaid" = true THEN 1 ELSE 0 END) AS paid_count
+      FROM public."PaymentCatalogs"
+      GROUP BY "JobId", "UserId"
+    ) pay 
+      ON pay."JobId" = J."Id"
+      AND pay."UserId" = MTR."ContractorId"
+
+    -- Creator
+    LEFT JOIN public."AbpUsers" CU 
+      ON CU."Id" = J."CreatorUserId"
+
+    ORDER BY J."CreationTime" DESC
+    LIMIT 500;
+  `;
 
   try {
     const result = await pool.query(sql);
@@ -846,6 +872,7 @@ LIMIT 50;
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 
