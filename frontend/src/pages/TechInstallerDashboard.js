@@ -37,9 +37,6 @@ const loadData = async () => {
   if (firstStore) setActiveStore(firstStore);
 };
 
-
-
-
   if (!activeStore) {
     return <div style={{ padding: 20 }}>Loading dashboard...</div>;
   }
