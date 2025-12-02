@@ -861,7 +861,7 @@ app.get("/jobs", async (req, res) => {
       ON CU."Id" = J."CreatorUserId"
 
     ORDER BY J."CreationTime" DESC
-    LIMIT 500;
+    LIMIT 500000;
   `;
 
   try {
