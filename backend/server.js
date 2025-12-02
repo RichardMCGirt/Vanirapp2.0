@@ -886,6 +886,40 @@ app.get("/jobs", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+app.get("/dashboard/creators", async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        s."Name" AS store_name,
+        u."Id" AS user_id,
+        (u."Name" || ' ' || u."Surname") AS full_name,
+        COUNT(j."Id") AS created_count
+      FROM public."Jobs" j
+      JOIN public."Stores" s 
+        ON s."Id" = j."StoreId"
+      JOIN public."AbpUsers" u
+        ON u."Id" = j."CreatorUserId"
+      WHERE j."CreatorUserId" IS NOT NULL
+      GROUP BY store_name, user_id, full_name
+      ORDER BY store_name, created_count DESC;
+    `;
+
+    const result = await pool.query(sql);
+
+    // Group by store like workloads/punchlists
+    const grouped = {};
+    result.rows.forEach(row => {
+      if (!grouped[row.store_name]) grouped[row.store_name] = [];
+      grouped[row.store_name].push(row);
+    });
+
+    res.json(grouped);
+
+  } catch (err) {
+    console.error("Creator dashboard error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // ================================
 // PUNCHLIST COUNT PER USER

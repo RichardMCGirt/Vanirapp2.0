@@ -19,6 +19,7 @@ export default function TechInstallerDashboard() {
   const [activeStore, setActiveStore] = useState("");
   const [activeTab, setActiveTab] = useState("techs");
 const [punchlistData, setPunchlistData] = useState({});
+const [creatorData, setCreatorData] = useState({});
 
   useEffect(() => {
     loadData();
@@ -27,6 +28,8 @@ const [punchlistData, setPunchlistData] = useState({});
 const loadData = async () => {
   const workloads = await apiGet("/dashboard/workloads");
   const punchlists = await apiGet("/dashboard/punchlists");
+const creators = await apiGet("/dashboard/creators");
+setCreatorData(creators);
 
   console.log("PUNCHLIST RAW:", punchlists);
 
@@ -141,6 +144,20 @@ console.log("MATCHED:", punchlistData[activeStore]);
 >
   Punchlist Count
 </button>
+<button
+  onClick={() => setActiveTab("creators")}
+  style={{
+    padding: "8px 18px",
+    background: activeTab === "creators" ? "#009688" : "#ccc",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    color: "white",
+    marginLeft: 10
+  }}
+>
+  Backcharges created
+</button>
 
         </div>
 
@@ -186,6 +203,27 @@ console.log("MATCHED:", punchlistData[activeStore]);
               .sort((a, b) => a.punchlist_count - b.punchlist_count)
               .map(x => x.punchlist_count),
             backgroundColor: "rgba(106, 76, 147, 0.6)"
+          }
+        ]
+      }}
+    />
+  </>
+)}
+{activeTab === "creators" && creatorData[activeStore] && (
+  <>
+    <h2>Back charges Created per User</h2>
+    <Bar
+      data={{
+        labels: creatorData[activeStore]
+          .sort((a, b) => b.created_count - a.created_count)
+          .map(x => x.full_name),
+        datasets: [
+          {
+            label: "Backcharges Created",
+            data: creatorData[activeStore]
+              .sort((a, b) => b.created_count - a.created_count)
+              .map(x => x.created_count),
+            backgroundColor: "rgba(0, 150, 136, 0.6)"
           }
         ]
       }}
