@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { apiGet } from "../api/api";
 import "./Communities.css";
+import Navbar from "../components/Navbar";
 
 export default function Communities() {
   const [stores, setStores] = useState({});
@@ -13,14 +14,14 @@ export default function Communities() {
 
       // Build store lookup
       const storeMap = {};
-      storesRes.forEach(s => {
+      storesRes.forEach((s) => {
         storeMap[s.Id] = s.Name;
       });
 
       // Group by store
       const grouped = {};
-      communitiesRes.forEach(c => {
-const storeName = storeMap[c.StoreId] || "Unknown Store";
+      communitiesRes.forEach((c) => {
+        const storeName = storeMap[c.StoreId] || "Unknown Store";
 
         if (!grouped[storeName]) grouped[storeName] = [];
         grouped[storeName].push(c);
@@ -39,65 +40,68 @@ const storeName = storeMap[c.StoreId] || "Unknown Store";
   // Search filter
   function filterList(list) {
     if (!search.trim()) return list;
-    return list.filter(c =>
+    return list.filter((c) =>
       c.Name.toLowerCase().includes(search.toLowerCase())
     );
   }
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Communities</h1>
+    <>
+      <Navbar />
 
-      <input
-        type="text"
-        className="search-box"
-        placeholder="Search communities..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div style={{ padding: "20px" }}>
+        <h1>Communities</h1>
 
-      {Object.keys(stores).map((storeName) => {
-        const list = filterList(stores[storeName]);
+        <input
+          type="text"
+          className="search-box"
+          placeholder="Search communities..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-        if (list.length === 0) return null;
+        {Object.keys(stores).map((storeName) => {
+          const list = filterList(stores[storeName]);
 
-        return (
-          <div key={storeName} className="store-section">
-            <h2 className="store-title">{storeName}</h2>
+          if (list.length === 0) return null;
 
-           <table className="community-table">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Community</th>
-      <th>Labor Reduction</th>
-      <th>Builders</th>
-    </tr>
-  </thead>
+          return (
+            <div key={storeName} className="store-section">
+              <h2 className="store-title">{storeName}</h2>
 
-  <tbody>
-    {list.map((c) => (
-      <tr key={c.Id}>
-        <td>{c.Id}</td>
-        <td>{c.Name}</td>
+              <table className="community-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Community</th>
+                    <th>Labor Reduction</th>
+                    <th>Builders</th>
+                  </tr>
+                </thead>
 
-        <td style={{ color: "#004aad", fontWeight: "bold" }}>
-          {c.LaborReduction ?? "—"}
-        </td>
+                <tbody>
+                  {list.map((c) => (
+                    <tr key={c.Id}>
+                      <td>{c.Id}</td>
+                      <td>{c.Name}</td>
 
-        <td>
-          {c.builders?.length
-            ? c.builders.map(b => b.name).join(", ")
-            : "—"}
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+                      <td style={{ color: "#004aad", fontWeight: "bold" }}>
+                        {c.LaborReduction ?? "—"}
+                      </td>
 
-          </div>
-        );
-      })}
-    </div>
+                      <td>
+                        {c.builders?.length
+                          ? c.builders.map((b) => b.name).join(", ")
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }

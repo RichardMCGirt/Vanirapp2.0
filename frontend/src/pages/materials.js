@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { apiGet, apiPost } from "../api/api";
 import "./MaterialSelector.css"; // CSS import
+import Navbar from "../components/Navbar";
 
 export default function Materials() {
   const [materials, setMaterials] = useState([]);
@@ -65,60 +66,64 @@ export default function Materials() {
   }
 
   return (
-    <div className="material-container">
-      <h1>Materials</h1>
-      <p>Select a material, reason, and optional color.</p>
+    <>
+      <Navbar />
 
-      {/* MATERIAL SELECT */}
-      <label>Material</label>
-      <select
-        value={selectedMaterial?.id || ""}
-        onChange={handleMaterialChange}
-      >
-        <option value="">Select material...</option>
-        {materials.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.name}
-          </option>
-        ))}
-      </select>
+      <div className="material-container">
+        <h1>Materials</h1>
+        <p>Select a material, reason, and optional color.</p>
 
-      {/* REASONS SELECT */}
-      {selectedMaterial && (
-        <>
-          <label>Reason</label>
-          <select
-            value={selectedReason}
-            onChange={(e) => setSelectedReason(e.target.value)}
-          >
-            <option value="">Select a reason...</option>
+        {/* MATERIAL SELECT */}
+        <label>Material</label>
+        <select
+          value={selectedMaterial?.id || ""}
+          onChange={handleMaterialChange}
+        >
+          <option value="">Select material...</option>
+          {materials.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
 
-            {selectedMaterial.reasons.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
+        {/* REASONS SELECT */}
+        {selectedMaterial && (
+          <>
+            <label>Reason</label>
+            <select
+              value={selectedReason}
+              onChange={(e) => setSelectedReason(e.target.value)}
+            >
+              <option value="">Select a reason...</option>
 
-      {/* COLOR INPUT IF MATERIAL HAS COLOR */}
-      {selectedMaterial?.hasColor && (
-        <>
-          <label>Color</label>
-          <input
-            type="text"
-            placeholder="Enter color (White, Clay, Brown...)"
-            value={selectedColor}
-            onChange={(e) => setSelectedColor(e.target.value)}
-          />
-        </>
-      )}
+              {selectedMaterial.reasons.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
 
-      {/* SAVE BUTTON */}
-      <button onClick={saveMaterial} disabled={saving}>
-        {saving ? "Saving..." : "Save Material"}
-      </button>
-    </div>
+        {/* COLOR INPUT IF MATERIAL HAS COLOR */}
+        {selectedMaterial?.hasColor && (
+          <>
+            <label>Color</label>
+            <input
+              type="text"
+              placeholder="Enter color (White, Clay, Brown...)"
+              value={selectedColor}
+              onChange={(e) => setSelectedColor(e.target.value)}
+            />
+          </>
+        )}
+
+        {/* SAVE BUTTON */}
+        <button onClick={saveMaterial} disabled={saving}>
+          {saving ? "Saving..." : "Save Material"}
+        </button>
+      </div>
+    </>
   );
 }

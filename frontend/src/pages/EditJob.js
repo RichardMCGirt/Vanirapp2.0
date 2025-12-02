@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../api/api";
 import "./EditJob.css";
+import Navbar from "../components/Navbar";
 
 export default function EditJob() {
   const { id } = useParams();
@@ -13,6 +14,7 @@ export default function EditJob() {
   // -------------------------
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState(null);
+const [creatorName, setCreatorName] = useState("");
 
 
   const [communities, setCommunities] = useState([]);
@@ -67,6 +69,9 @@ setFieldTechs(fieldtechRes || []);
     setCommunityName(jobData.community_name || "");
     setBuilderName(jobData.builder_name || "");
     setSelectedTech(jobData.fieldtech_id || "");
+setCreatorName(
+  (jobData.creator_first || "") + " " + (jobData.creator_last || "")
+);
 
   } catch (err) {
     console.error("Error loading job:", err);
@@ -121,6 +126,9 @@ const installerFullName = job.installer
 
 
   return (
+  <>
+    <Navbar />
+
     <div className="edit-job-page">
       <h1>Edit Job</h1>
 
@@ -154,21 +162,24 @@ const installerFullName = job.installer
           ))}
         </select>
 
-        {/* Store (read-only) */}
+        {/* Store */}
         <label>Store</label>
         <input value={storeName} readOnly />
 
-        {/* Community (read-only) */}
+        {/* Community */}
         <label>Community</label>
         <input value={communityName} readOnly />
 
-        {/* Builder (read-only) */}
+        {/* Builder */}
         <label>Builder</label>
         <input value={builderName} readOnly />
 
-        {/* Installer name (read-only, from joined tables) */}
+        {/* Installer */}
         <label>Installer</label>
         <input value={installerFullName} readOnly />
+{/* Created By (read-only) */}
+<label>Created By</label>
+<input value={creatorName} readOnly />
 
         {/* Address */}
         <label>Address</label>
@@ -197,6 +208,7 @@ const installerFullName = job.installer
           <div className="trade-name">
             <strong>{t.trade_name}</strong>
           </div>
+
           <div className="trade-labor">
             <label>Labor Cost</label>
             <input
@@ -215,5 +227,7 @@ const installerFullName = job.installer
         Save
       </button>
     </div>
-  );
+  </>
+);
 }
+

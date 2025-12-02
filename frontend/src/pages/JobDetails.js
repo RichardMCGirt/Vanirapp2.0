@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import { apiGet, apiPost } from "../api/api";
 import "./JobDetails.css";
 import MaterialSelector from "../components/MaterialSelector";
+import Navbar from "../components/Navbar";
 
 export default function JobDetails() {
   const { id } = useParams();
@@ -12,11 +13,16 @@ const [measurements, setMeasurements] = useState([]);
 const [prewalkPdfs, setPrewalkPdfs] = useState([]);
 const [prewalkItems, setPrewalkItems] = useState([]);
 const [constructionManager, setConstructionManager] = useState(null);
+const [creatorName, setCreatorName] = useState("");
 
 useEffect(() => {
   async function fetchJob() {
     const data = await apiGet(`/job/${id}`);
     setJob(data);
+    setCreatorName(
+  ((data.creator_first || "") + " " + (data.creator_last || "")).trim()
+);
+
   }
 
   async function fetchMeasurements() {
@@ -109,6 +115,8 @@ async function submitMeasurements() {
   const badgeClass = statusText.toLowerCase().replace(" ", "-");
 
   return (
+      <>
+      <Navbar />
     <div className="job-details">
 
       {/* HEADER */}
@@ -139,16 +147,24 @@ async function submitMeasurements() {
       </div>
 
       {/* INFO GRID */}
-      <div className="info-grid">
+     <div className="info-grid">
 
-        {/* JOB INFO */}
-        <div className="card">
-          <h3>Job Information</h3>
-          <p><strong>Community:</strong> {job.community_name || "—"}</p>
-          <p><strong>Builder:</strong> {job.builder_name || "—"}</p>
-          <p><strong>Store:</strong> {job.store_name || "—"}</p>
-          <p><strong>Start Date:</strong> {formatPrettyDate(job.startdate)}</p>
-          <p><strong>Created:</strong> {new Date(job.creationtime).toLocaleDateString()}</p>
+  {/* JOB INFO */}
+  <div className="card">
+    <h3>Job Information</h3>
+    <p><strong>Community:</strong> {job.community_name || "—"}</p>
+    <p><strong>Builder:</strong> {job.builder_name || "—"}</p>
+    <p><strong>Store:</strong> {job.store_name || "—"}</p>
+    <p><strong>Created By:</strong> {job.creator?.first} {job.creator?.last}</p>
+<p><strong>Email:</strong> {job.creator?.email}</p>
+
+    <p><strong>Start Date:</strong> {formatPrettyDate(job.startdate)}</p>
+    <p><strong>Created:</strong> {new Date(job.creationtime).toLocaleDateString()}</p>
+<p style={{ marginTop: "6px" }}>
+  <strong>Created By:</strong> 
+  <span style={{ color: "#004aad", marginLeft: "4px" }}>{creatorName || "—"}</span>
+</p>
+
         </div>
 
         {/* FIELD TECH */}
@@ -325,22 +341,27 @@ async function submitMeasurements() {
   <button className="btn" onClick={submitMeasurements}>
     Save Measurements
   </button>
+</div> {/* closes Measurements card */}
+
+</div> {/* closes info-grid */}
+
+
+</div> {/* ⛔ THIS closes the main <div className="job-details"> */}
+
+
+{/* PLANS */}
+<div className="card full-width">
+  <h3>Plans & Options</h3>
+  <pre>{job.plansandoptions || "—"}</pre>
 </div>
 
+{/* ADDRESS */}
+<div className="card full-width">
+  <h3>Address</h3>
+  <p>{job.address || "—"}</p>
+</div>
 
-      </div>
-
-      {/* PLANS */}
-      <div className="card full-width">
-        <h3>Plans & Options</h3>
-        <pre>{job.plansandoptions || "—"}</pre>
-      </div>
-
-      {/* ADDRESS */}
-      <div className="card full-width">
-        <h3>Address</h3>
-        <p>{job.address || "—"}</p>
-      </div>
-    </div>
-  );
+</>
+);
 }
+

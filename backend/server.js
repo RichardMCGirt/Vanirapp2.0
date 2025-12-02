@@ -16,6 +16,7 @@ const airtable = new Airtable({ apiKey: process.env.AIRTABLE_KEY })
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/UserResources', express.static('UserResources'));
 
 // ------------------- TEMP LOGIN -------------------
 const { verifyAspNetIdentityPassword } = require("./passwordValidator");
@@ -60,8 +61,11 @@ app.get("/dashboard/workloads", async (req, res) => {
   try {
     const sql = `
       WITH valid_jobs AS (
-        SELECT * FROM public."Jobs"
-        WHERE "Status" NOT IN (3,4)   -- exclude completed
+        SELECT *
+        FROM public."Jobs"
+        WHERE "Status" NOT IN (3,4)
+          AND LOWER("Name") NOT LIKE '%test%'
+          AND "Name" !~ '^[0-9]+$'
       )
 
       -- FIELD TECHS
@@ -89,27 +93,20 @@ app.get("/dashboard/workloads", async (req, res) => {
       JOIN public."Stores" s ON s."Id" = vj."StoreId"
       JOIN public."JobContractors" jc ON jc."JobId" = vj."Id"
       JOIN public."AbpUsers" u ON u."Id" = jc."UserId"
-      GROUP BY store, user_id, full_name
+      GROUP BY store, user_id, full_name;
     `;
 
     const result = await pool.query(sql);
 
-    // Organize by store
     const stores = {};
-
     result.rows.forEach(row => {
-      if (!stores[row.store]) {
-        stores[row.store] = { techs: [], installers: [] };
-      }
+      if (!stores[row.store]) stores[row.store] = { techs: [], installers: [] };
 
-      const entry = {
+      stores[row.store][row.type === "tech" ? "techs" : "installers"].push({
         id: row.user_id,
         name: row.full_name,
         count: Number(row.count)
-      };
-
-      if (row.type === "tech") stores[row.store].techs.push(entry);
-      else stores[row.store].installers.push(entry);
+      });
     });
 
     res.json(stores);
@@ -119,33 +116,7 @@ app.get("/dashboard/workloads", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-app.get("/job/:jobId/images", async (req, res) => {
-  const jobId = req.params.jobId;
 
-  try {
-    const sql = `
-      SELECT 
-        img."Id",
-        img."ImagePath",
-        item."Id" AS "PreWalkItemId",
-        list."Id" AS "PreWalkListId"
-      FROM "PreWalkImages" img
-      JOIN "PreWalkItems" item
-        ON img."PreWalkItemId" = item."Id"
-      JOIN "PreWalkLists" list
-        ON item."PreWalkListId" = list."Id"
-      WHERE list."JobId" = $1
-      ORDER BY img."Id" ASC;
-    `;
-
-    const result = await pool.query(sql, [jobId]);
-
-    res.json(result.rows);
-  } catch (err) {
-    console.error("❌ Error loading job images:", err);
-    res.status(500).json({ error: "Failed to load images" });
-  }
-});
 // ================================
 // GET MEASUREMENTS FOR A JOB
 // ================================
@@ -254,7 +225,7 @@ app.get('/job/:id/construction-manager', async (req, res) => {
               cm."Id"
        FROM public."ConstructionManagers" cm
        WHERE cm."BuilderId" = (
-           SELECT "builder_id" FROM public."Jobs" WHERE "Id" = $1
+           SELECT "BuilderId" FROM public."Jobs" WHERE "Id" = $1
        )
        LIMIT 1`,
       [jobId]
@@ -266,6 +237,31 @@ app.get('/job/:id/construction-manager', async (req, res) => {
     res.status(500).json({ error: "Failed to load construction manager" });
   }
 });
+
+// Get AWS COI files from CwccForms by subcontractor ID
+app.get("/subcontractor-files/:id", async (req, res) => {
+  const { id } = req.params;
+
+  console.log("📥 API HIT: /subcontractor-files/", id);
+
+  try {
+    const result = await pool.query(
+      `SELECT "UserId", "CompanyName", "PolicyCompany", "ContractorName", "SignUrl"
+       FROM public."CwccForms"
+       WHERE "UserId" = $1`,
+      [id]
+    );
+
+    console.log("📤 CwccForms rows:", result.rows);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ Query error:", err);
+    res.status(500).json({ error: "Failed to load AWS COI files" });
+  }
+});
+
+
 
 app.get('/job/:id/prewalk-items', async (req, res) => {
   const jobId = req.params.id;
@@ -536,7 +532,7 @@ app.get("/jobs/lien", async (req, res) => {
       FROM "Jobs"
       WHERE "LienNumber" IS NOT NULL
       ORDER BY "Id" DESC
-      LIMIT 20
+      LIMIT 5
     `;
 
     const r = await pool.query(sql);
@@ -592,20 +588,20 @@ app.get("/subcontractors-users", async (req, res) => {
       const email = (u.UserName || "").toLowerCase();
       const air = recordMap[email] || {};
 
-      // Direct map of expiration fields (top-level)
       return {
         ...u,
-
         GeneralLiability: air["General Liability Expiration Date"] || null,
         WorkersComp: air["Worker's Comp Expiration Date"] || null,
         AutoLiability: air["Auto Liability Expiration Date"] || null,
-
-        // Nested Airtable extras
         Specialty: air["Specialty"] || [],
         COI: air["COI"] || [],
-
         AirtableId: air.id || null
       };
+    });
+
+    // 🔥 DEBUG FINAL MERGED ROWS
+    merged.forEach((row, i) => {
+      console.log("🔥 FULL SUBCONTRACTOR ROW:", i, JSON.stringify(row, null, 2));
     });
 
     res.json(merged);
@@ -613,6 +609,48 @@ app.get("/subcontractors-users", async (req, res) => {
   } catch (err) {
     console.error("❌ Users subcontractor error:", err);
     res.status(500).json({ error: "Server error loading subcontractors" });
+  }
+});
+
+app.get("/subcontractor-files/:email", async (req, res) => {
+  const email = decodeURIComponent(req.params.email).toLowerCase();
+
+  try {
+    const userQuery = `
+      SELECT "Id"
+      FROM public."AbpUsers"
+      WHERE LOWER("EmailAddress") = $1
+      LIMIT 1;
+    `;
+
+    const userResult = await pool.query(userQuery, [email]);
+
+    if (userResult.rows.length === 0) {
+      return res.json([]);
+    }
+
+if (userResult.rows.length === 0) return res.json([]);
+
+    const cwccQuery = `
+      SELECT "SignUrl", "CompanyName", "PolicyCompany", "ContractorName"
+      FROM public."CwccForms"
+      WHERE "UserId" = $1;
+    `;
+
+    const cwccResult = await pool.query(cwccQuery, [abpUserId]);
+
+    const BASE = "https://vanirlive.lbmlo.live/f5api/";
+
+    const files = cwccResult.rows.map(r => ({
+      url: r.SignUrl ? BASE + r.SignUrl : null,
+      companyName: r.CompanyName,
+      policyCompany: r.PolicyCompany,
+      contractorName: r.ContractorName
+    }));
+
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load AWS files" });
   }
 });
 
@@ -750,44 +788,67 @@ app.get("/jobs", async (req, res) => {
 SELECT
   J."Id" AS job_id,
   J."Name" AS job_name,
-  J."CreationTime",
-  J."LienNumber" AS lien_number,  -- ✅ ADD THIS
+  J."LocationAddress" AS address,
+  J."StartDate" AS startdate,
+  J."CreationTime" AS creationtime,
+  J."Status" AS status,
+  J."PlansAndOptions" AS plansandoptions,
+  J."FieldTechId" AS fieldtech_id,
+
+  -- Store / Builder / Community
   S."Name" AS store_name,
+  C."Name" AS community_name,
+  B."Name" AS builder_name,
 
-  T."Name" AS trade_name,
+  -- Field Tech
+  FT."Name" AS fieldtech_first,
+  FT."Surname" AS fieldtech_last,
+
+  -- Trades / Installer
   JT."LaborCost" AS labor_cost,
-
-  JC."IsPaid" AS ispaid,
+  T."Name" AS trade_name,
   JC."UserId" AS installer_user_id,
-
   U."Name" AS installer_first,
-  U."Surname" AS installer_last
+  U."Surname" AS installer_last,
+  U."EmailAddress" AS installer_email,
 
+  -- 🔥 Creator Information
+  CU."Name" AS creator_first,
+  CU."Surname" AS creator_last,
+  CU."EmailAddress" AS creator_email
 
+FROM public."Jobs" J
+LEFT JOIN public."Stores" S ON S."Id" = J."StoreId"
+LEFT JOIN public."Communities" C ON C."Id" = J."CommunityId"
+LEFT JOIN public."Builders" B ON B."Id" = J."BuilderId"
+LEFT JOIN public."AbpUsers" FT ON FT."Id" = J."FieldTechId"
 
-FROM "Jobs" J
-LEFT JOIN "Stores" S ON S."Id" = J."StoreId"
-LEFT JOIN "JobTrades" JT ON JT."JobId" = J."Id"
-LEFT JOIN "Trades" T ON T."Id" = JT."TradeId"
-LEFT JOIN "JobContractors" JC ON JC."JobId" = J."Id"
-LEFT JOIN "AbpUsers" U ON U."Id" = JC."UserId"
+LEFT JOIN public."JobTrades" JT ON JT."JobId" = J."Id"
+LEFT JOIN public."Trades" T ON T."Id" = JT."TradeId"
 
-WHERE 1=1
+LEFT JOIN public."JobContractors" JC ON JC."JobId" = J."Id"
+LEFT JOIN public."AbpUsers" U ON U."Id" = JC."UserId"
+
+-- 🔥 Add this JOIN
+LEFT JOIN public."AbpUsers" CU ON CU."Id" = J."CreatorUserId"
 
 ORDER BY J."CreationTime" DESC
-LIMIT 30000;
+LIMIT 50;
 
-  `;
+
+`;
 
   try {
-    const r = await pool.query(sql);
-    res.json(r.rows);
-
+    const result = await pool.query(sql);
+    res.json(result.rows);
   } catch (err) {
     console.error("Jobs list error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
+
 app.get("/stores", async (req, res) => {
   try {
     const r = await pool.query(`
@@ -866,6 +927,7 @@ app.get("/constructionmanagers", async (req, res) => {
         "FullName",
         "PhoneNumber",
         "BuilderId",
+        
         "StoreId"
       FROM public."ConstructionManagers"
       WHERE "IsDeleted" = false
